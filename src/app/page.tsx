@@ -53,7 +53,7 @@ export default function Home() {
   return (
     <div className="h-screen flex">
       {/* Left Pane - Routes */}
-      <div className="w-1/2 bg-gray-50 border-r border-gray-200 flex flex-col">
+      <div className="w-1/3 bg-gray-50 border-r border-gray-200 flex flex-col">
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 bg-white">
           <nav className="flex space-x-8 px-6 py-4">
@@ -141,7 +141,7 @@ export default function Home() {
       </div>
 
       {/* Right Pane - Map */}
-      <div className="w-1/2 bg-gray-100">
+      <div className="w-2/3 bg-gray-100">
         <Map 
           center={selectedRoute && selectedRoute.points.length > 0 
             ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon] 

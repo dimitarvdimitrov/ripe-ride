@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { readdir, readFile } from 'fs/promises';
+import {NextRequest, NextResponse} from 'next/server';
+import {readdir, readFile} from 'fs/promises';
 import path from 'path';
 
 export async function GET(request: NextRequest) {
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
             totalDistance += calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon);
           }
 
-          const result = {
+          return {
             id: file.replace('.gpx', ''),
             name: routeName,
             distance: `${(totalDistance / 1000).toFixed(1)} km`,
@@ -59,8 +59,6 @@ export async function GET(request: NextRequest) {
             points: points,
             lastDone: folder === 'recent' ? getRandomRecentDate() : undefined
           };
-          
-          return result;
         } catch (error) {
           console.error(`❌ Error parsing ${file}:`, error);
           return {
