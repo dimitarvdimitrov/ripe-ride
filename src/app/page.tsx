@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamic import to avoid SSR issues with Leaflet
@@ -9,21 +9,46 @@ const Map = dynamic(() => import('@/components/Map'), {
   loading: () => <p>Loading map...</p>
 });
 
+interface Route {
+  id: string;
+  name: string;
+  distance: string;
+  elevation: string;
+  lastDone?: string;
+  points: { lat: number; lon: number; elevation?: number }[];
+  error?: string;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
+  const [recentRoutes, setRecentRoutes] = useState<Route[]>([]);
+  const [savedRoutes, setSavedRoutes] = useState<Route[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
 
-  const mockRecentRoutes = [
-    { id: 1, name: 'Morning Loop', distance: '5.2 km', lastDone: '2 days ago' },
-    { id: 2, name: 'Hill Climb', distance: '8.1 km', lastDone: '1 week ago' },
-    { id: 3, name: 'River Path', distance: '3.7 km', lastDone: '3 days ago' },
-  ];
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        const [recentResponse, savedResponse] = await Promise.all([
+          fetch('/api/routes?folder=recent'),
+          fetch('/api/routes?folder=saved')
+        ]);
 
-  const mockSavedRoutes = [
-    { id: 1, name: 'Epic Mountain Trail', distance: '12.4 km', elevation: '450m' },
-    { id: 2, name: 'Coastal Route', distance: '18.2 km', elevation: '120m' },
-    { id: 3, name: 'Forest Loop', distance: '7.8 km', elevation: '200m' },
-    { id: 4, name: 'City Circuit', distance: '15.1 km', elevation: '80m' },
-  ];
+        if (recentResponse.ok && savedResponse.ok) {
+          const recent = await recentResponse.json();
+          const saved = await savedResponse.json();
+          setRecentRoutes(recent);
+          setSavedRoutes(saved);
+        }
+      } catch (error) {
+        console.error('Error fetching routes:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoutes();
+  }, []);
 
   return (
     <div className="h-screen flex">
@@ -57,29 +82,73 @@ export default function Home() {
 
         {/* Route List */}
         <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-4">
-            {activeTab === 'recent' && mockRecentRoutes.map((route) => (
-              <div key={route.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                <h3 className="font-medium text-gray-900">{route.name}</h3>
-                <p className="text-sm text-gray-600">{route.distance}</p>
-                <p className="text-sm text-gray-500">Last done: {route.lastDone}</p>
-              </div>
-            ))}
-            
-            {activeTab === 'saved' && mockSavedRoutes.map((route) => (
-              <div key={route.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                <h3 className="font-medium text-gray-900">{route.name}</h3>
-                <p className="text-sm text-gray-600">{route.distance}</p>
-                <p className="text-sm text-gray-500">Elevation: {route.elevation}</p>
-              </div>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex justify-center items-center h-32">
+              <p className="text-gray-500">Loading routes...</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {activeTab === 'recent' && recentRoutes.map((route) => (
+                <div 
+                  key={route.id} 
+                  className={`bg-white p-4 rounded-lg shadow-sm border cursor-pointer hover:shadow-md transition-shadow ${
+                    route.error 
+                      ? 'border-red-200 bg-red-50' 
+                      : 'border-gray-200'
+                  } ${
+                    selectedRoute?.id === route.id ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                  onClick={() => {
+                    console.log(`📍 Selected route: ${route.name} (${route.points.length} points)`);
+                    setSelectedRoute(route);
+                  }}
+                >
+                  <h3 className="font-medium text-gray-900">{route.name}</h3>
+                  <p className="text-sm text-gray-600">{route.distance}</p>
+                  <p className="text-sm text-gray-500">Last done: {route.lastDone}</p>
+                  {route.error && (
+                    <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
+                  )}
+                </div>
+              ))}
+              
+              {activeTab === 'saved' && savedRoutes.map((route) => (
+                <div 
+                  key={route.id} 
+                  className={`bg-white p-4 rounded-lg shadow-sm border cursor-pointer hover:shadow-md transition-shadow ${
+                    route.error 
+                      ? 'border-red-200 bg-red-50' 
+                      : 'border-gray-200'
+                  } ${
+                    selectedRoute?.id === route.id ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                  onClick={() => {
+                    console.log(`📍 Selected route: ${route.name} (${route.points.length} points)`);
+                    setSelectedRoute(route);
+                  }}
+                >
+                  <h3 className="font-medium text-gray-900">{route.name}</h3>
+                  <p className="text-sm text-gray-600">{route.distance}</p>
+                  <p className="text-sm text-gray-500">Elevation: {route.elevation}</p>
+                  {route.error && (
+                    <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Right Pane - Map */}
       <div className="w-1/2 bg-gray-100">
-        <Map center={[51.505, -0.09]} zoom={13} />
+        <Map 
+          center={selectedRoute && selectedRoute.points.length > 0 
+            ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon] 
+            : [52.3676, 4.9041]} 
+          zoom={13}
+          route={selectedRoute}
+        />
       </div>
     </div>
   );
