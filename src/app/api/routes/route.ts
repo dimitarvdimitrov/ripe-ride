@@ -16,6 +16,12 @@ export async function GET(request: NextRequest) {
         const elevationMin = parseFloat(searchParams.get('elevationMin') || '0');
         const elevationMax = parseFloat(searchParams.get('elevationMax') || '2000');
 
+        // Create shared heatmap configuration
+        const heatmapConfig: HeatmapConfig = {
+            heatmapSizeKm,
+            referencePoint: DEFAULT_REFERENCE_POINT
+        };
+
         if (!folder || (folder !== 'saved' && folder !== 'recent')) {
             return NextResponse.json({error: 'Invalid folder parameter'}, {status: 400});
         }
@@ -50,7 +56,7 @@ export async function GET(request: NextRequest) {
             console.log(`📊 Calculating overlap scores for ${routes.length} saved routes...`);
 
             // Generate the comprehensive heatmap once for all saved routes
-            const allRoutesHeatmap = await generateRecentRoutesHeatmap(heatmapSizeKm);
+            const allRoutesHeatmap = await generateRecentRoutesHeatmap(heatmapConfig);
 
             // Calculate overlap score for each saved route
             const routesWithOverlapScores = await Promise.all(
@@ -76,17 +82,13 @@ export async function GET(request: NextRequest) {
                     const {
                         score,
                         routeHeatmap
-                    } = await calculateOverlapScore(loadedRoute, heatmapSizeKm, allRoutesHeatmap);
+                    } = await calculateOverlapScore(loadedRoute, heatmapConfig, allRoutesHeatmap);
                     const totalDistance = routeHeatmap.reduce((sum, cell) => sum + cell.distance, 0);
                     const maxDistance = Math.max(...routeHeatmap.map(cell => cell.distance));
 
                     const routeHeatmapAnalysis = {
-                        // TODO create a config at the top of the handler and then also propagate this config to calculateOverlapScore above so that doesn't need to create its own config
                         // TODO after you do the above TODO, then just remove the heatmapConfig from this response
-                        heatmapConfig: {
-                            heatmapSizeKm,
-                            referencePoint: DEFAULT_REFERENCE_POINT
-                        },
+                        heatmapConfig,
                         heatmapData: routeHeatmap,
                         stats: {
                             totalCells: routeHeatmap.length,
@@ -141,12 +143,8 @@ function generateSingleRouteHeatmap(
 }
 
 // Load and generate heatmap for all recent routes
-async function generateRecentRoutesHeatmap(heatmapSizeKm: number): Promise<HeatmapCell[]> {
+async function generateRecentRoutesHeatmap(heatmapConfig: HeatmapConfig): Promise<HeatmapCell[]> {
     try {
-        const heatmapConfig: HeatmapConfig = {
-            heatmapSizeKm,
-            referencePoint: DEFAULT_REFERENCE_POINT
-        };
 
         const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
@@ -213,13 +211,9 @@ function calculateActualOverlapScore(
 // Calculate overlap score using proper heatmap analysis
 async function calculateOverlapScore(
     route: LoadedRoute,
-    heatmapSizeKm: number,
+    heatmapConfig: HeatmapConfig,
     allRoutesHeatmap: HeatmapCell[]
 ): Promise<{ score: number; routeHeatmap: HeatmapCell[] }> {
-    const heatmapConfig: HeatmapConfig = {
-        heatmapSizeKm,
-        referencePoint: DEFAULT_REFERENCE_POINT
-    };
 
     // Generate heatmap for this single route
     const singleRouteHeatmap = generateSingleRouteHeatmap(route, heatmapConfig);
