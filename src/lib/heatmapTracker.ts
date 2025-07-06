@@ -30,6 +30,12 @@ export interface HeatmapTracker {
   findCell(cellX: number, cellY: number): HeatmapCell | undefined;
 
   /**
+   * Execute a callback for each non-empty cell
+   * @param callback Function to execute for each cell
+   */
+  forEachNonEmpty(callback: (cell: HeatmapCell) => void): void;
+
+  /**
    * Get all heatmap cells with their distances
    * @returns Array of HeatmapCell objects
    */
@@ -104,6 +110,15 @@ export class ArrayHeatmapTracker implements HeatmapTracker {
       return { cellX, cellY, distance };
     }
     return undefined;
+  }
+
+  forEachNonEmpty(callback: (cell: HeatmapCell) => void): void {
+    this.heatmap.forEach((distance, key) => {
+      if (distance > 0) {
+        const [cellX, cellY] = key.split(',').map(Number);
+        callback({ cellX, cellY, distance });
+      }
+    });
   }
 
   getAllCells(): HeatmapCell[] {
