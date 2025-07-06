@@ -1,3 +1,5 @@
+import { type HeatmapConfig } from './heatmapConfig';
+
 export interface HeatmapCell {
   cellX: number;
   cellY: number;
@@ -53,10 +55,6 @@ export interface HeatmapTracker {
   getHeatmap(): Map<string, number>;
 }
 
-export interface HeatmapConfig {
-  heatmapSizeKm: number;
-  referencePoint: [number, number];
-}
 
 /**
  * Convert lat/lng coordinates to heatmap coordinates
