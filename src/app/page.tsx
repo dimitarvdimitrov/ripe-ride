@@ -50,7 +50,7 @@ export default function Home() {
   const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]); // meters
 
   // Debounce grid size to prevent excessive requests
-  const debouncedGridSize = useDebounce(gridSizeKm, 300);
+  const debouncedGridSize = useDebounce(gridSizeKm, 100);
   
   // Use React Query for grid analysis
   const {
@@ -92,7 +92,7 @@ export default function Home() {
   return (
     <div className="h-screen flex">
       {/* Left Pane - Routes */}
-      <div className="w-1/3 bg-gray-50 border-r border-gray-200 flex flex-col">
+      <div className="w-1/4 bg-gray-50 border-r border-gray-200 flex flex-col">
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 bg-white">
           <nav className="flex space-x-8 px-6 py-4">
@@ -123,11 +123,11 @@ export default function Home() {
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
           <div className="space-y-4">
             {/* Distance Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Distance: {distanceRange[0]}km - {distanceRange[1]}km
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-700 min-w-0 flex-shrink-0">
+                Distance: {distanceRange[0]}-{distanceRange[1]}km
               </label>
-              <div className="relative">
+              <div className="dual-range-container flex-1 ml-3">
                 <input
                   type="range"
                   min="0"
@@ -135,7 +135,7 @@ export default function Home() {
                   step="1"
                   value={distanceRange[0]}
                   onChange={(e) => setDistanceRange([Number(e.target.value), distanceRange[1]])}
-                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
+                  className="absolute w-full appearance-none cursor-pointer slider-thumb-blue"
                 />
                 <input
                   type="range"
@@ -144,17 +144,17 @@ export default function Home() {
                   step="1"
                   value={distanceRange[1]}
                   onChange={(e) => setDistanceRange([distanceRange[0], Number(e.target.value)])}
-                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
+                  className="absolute w-full appearance-none cursor-pointer slider-thumb-blue"
                 />
               </div>
             </div>
 
             {/* Elevation Filter */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Elevation: {elevationRange[0]}m - {elevationRange[1]}m
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-medium text-gray-700 min-w-0 flex-shrink-0">
+                Elevation: {elevationRange[0]}-{elevationRange[1]}m
               </label>
-              <div className="relative">
+              <div className="dual-range-container flex-1 ml-3">
                 <input
                   type="range"
                   min="0"
@@ -162,7 +162,7 @@ export default function Home() {
                   step="50"
                   value={elevationRange[0]}
                   onChange={(e) => setElevationRange([Number(e.target.value), elevationRange[1]])}
-                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-green"
+                  className="absolute w-full appearance-none cursor-pointer slider-thumb-green"
                 />
                 <input
                   type="range"
@@ -171,7 +171,7 @@ export default function Home() {
                   step="50"
                   value={elevationRange[1]}
                   onChange={(e) => setElevationRange([elevationRange[0], Number(e.target.value)])}
-                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-green"
+                  className="absolute w-full appearance-none cursor-pointer slider-thumb-green"
                 />
               </div>
             </div>
@@ -266,7 +266,7 @@ export default function Home() {
       </div>
 
       {/* Right Pane - Map */}
-      <div className="w-2/3 bg-gray-100">
+      <div className="w-3/4 bg-gray-100">
         <Map 
           center={selectedRoute && selectedRoute.points.length > 0 
             ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon] 

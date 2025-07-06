@@ -171,15 +171,17 @@ export default function Map({
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Grid Size: {gridSizeKm}km
           </label>
-          <input
-            type="range"
-            min="0.5"
-            max="20"
-            step="0.5"
-            value={gridSizeKm}
-            onChange={(e) => onGridSizeChange(Number(e.target.value))}
-            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-purple"
-          />
+          <div className="single-range-container">
+            <input
+              type="range"
+              min="0.5"
+              max="20"
+              step="0.5"
+              value={gridSizeKm}
+              onChange={(e) => onGridSizeChange(Number(e.target.value))}
+              className="w-full appearance-none cursor-pointer slider-thumb-purple"
+            />
+          </div>
           <div className="flex justify-between text-xs text-gray-500 mt-0.5">
             <span>0.5km</span>
             <span>20km</span>
