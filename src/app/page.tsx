@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { useHeatmapAnalysis } from '@/hooks/useHeatmapAnalysis';
 import { useRoutes, Route } from '@/hooks/useRoutes';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -14,14 +16,50 @@ const Map = dynamic(() => import('@/components/Map'), {
 
 
 export default function Home() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [heatmapSizeKm, setHeatmapSizeKm] = useState(5);
   const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
+  const [isFirstSync, setIsFirstSync] = useState(false);
   
   // Filter states
   const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]);
   const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]);
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (status === 'loading') return; // Still loading
+    if (!session) {
+      router.push('/login');
+      return;
+    }
+  }, [session, status, router]);
+
+  // Sync routes on first login
+  useEffect(() => {
+    const syncRoutes = async () => {
+      if (session && !isFirstSync) {
+        setIsFirstSync(true);
+        try {
+          console.log('🔄 First login detected, syncing routes...');
+          const response = await fetch('/api/sync-routes', {
+            method: 'POST',
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log(`✅ Synced ${result.syncedCount} routes from Strava`);
+          }
+        } catch (error) {
+          console.error('❌ Failed to sync routes:', error);
+        }
+      }
+    };
+
+    syncRoutes();
+  }, [session, isFirstSync]);
 
   // Debounce values to prevent excessive requests
   const debouncedHeatmapSize = useDebounce(heatmapSizeKm, 100);
@@ -67,6 +105,20 @@ export default function Home() {
   );
 
   const loading = loadingRecent || loadingSaved;
+
+  // Show loading screen while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  // Don't render anything if not authenticated (will redirect)
+  if (!session) {
+    return null;
+  }
 
   // For per-route mode, use the selected route's heatmap data
   const currentHeatmapAnalysis = heatmapMode === 'per-route' ? selectedRoute?.routeHeatmap : heatmapAnalysis;
@@ -169,6 +221,33 @@ export default function Home() {
     <div className="h-screen flex">
       {/* Left Pane - Routes */}
       <div className="w-1/4 bg-gray-50 border-r border-gray-200 flex flex-col">
+        {/* User Profile Header */}
+        <div className="bg-white px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {session.user?.image && (
+                <img
+                  src={session.user.image}
+                  alt={session.user.name || 'User'}
+                  className="w-8 h-8 rounded-full"
+                />
+              )}
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  {session.user?.name || 'Strava User'}
+                </p>
+                <p className="text-xs text-gray-500">Connected to Strava</p>
+              </div>
+            </div>
+            <button
+              onClick={() => signOut()}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+
         {/* Tab Navigation */}
         <div className="border-b border-gray-200 bg-white">
           <nav className="flex space-x-8 px-6 py-4">
