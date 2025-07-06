@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import L from 'leaflet';
 import { type HeatmapCell } from '@/lib/heatmapTracker';
 import { createHeatmapConfig } from '@/lib/heatmapConfig';
+import { type Route } from '@/hooks/useRoutes';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -15,17 +16,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-interface Route {
-  id: string;
-  name: string;
-  distance: number | null; // Distance in meters, null if error
-  elevation: number | null; // Max elevation in meters, null if error
-  lastDone?: string;
-  points: { lat: number; lon: number; elevation?: number }[];
-  error?: string;
-  overlapScore?: number;
-  routeHeatmap?: HeatmapAnalysis;
-}
 
 interface HeatmapAnalysis {
   heatmapData: HeatmapCell[];
