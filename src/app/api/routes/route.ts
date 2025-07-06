@@ -58,13 +58,13 @@ export async function GET(request: NextRequest) {
             // Generate the comprehensive heatmap once for all saved routes
             const allRoutesHeatmap = await generateRecentRoutesHeatmap(heatmapConfig);
 
-            // Calculate overlap score for each saved route
-            const routesWithOverlapScores = await Promise.all(
-                routes.map(async (route) => {
-                if (route.error || route.points.length === 0) {
-                    return {...route, overlapScore: undefined, routeHeatmap: undefined};
-                }
+            // Separate routes with and without errors using functional approach
+            const validRoutes = routes.filter(route => !route.error && route.points.length > 0);
+            const errorRoutes = routes.filter(route => route.error || route.points.length === 0);
 
+            // Calculate overlap scores only for valid routes
+            const validRoutesWithScores = await Promise.all(
+                validRoutes.map(async (route) => {
                 try {
                     // Convert API route back to LoadedRoute format for processing
                     const loadedRoute: LoadedRoute = {
@@ -75,7 +75,6 @@ export async function GET(request: NextRequest) {
                         // TODO just have a number on the API- change how the frontend uses that
                         totalDistance: parseFloat(route.distance.replace(' km', '')) * 1000, // Convert back to meters
                         folder: folder as 'recent' | 'saved',
-                        // TODO don't calculate score for any routes with errors - do this in a fucntional way where we filter out routes with errors
                         error: route.error
                     };
 
@@ -108,6 +107,12 @@ export async function GET(request: NextRequest) {
                 }
             })
             );
+
+            // Combine valid routes with scores and error routes without scores
+            const routesWithOverlapScores = [
+                ...validRoutesWithScores,
+                ...errorRoutes.map(route => ({ ...route, overlapScore: undefined, routeHeatmap: undefined }))
+            ];
 
             return NextResponse.json(routesWithOverlapScores);
         }
