@@ -114,18 +114,30 @@ function GridDensityOverlay({ showGrid, gridAnalysis }: { showGrid: boolean, gri
   );
 }
 
-// Component to fit map bounds to route
-function FitBounds({ route }: { route: Route | null }) {
+// Component to fit map bounds to grid analysis area
+function FitBounds({ gridAnalysis }: { gridAnalysis: GridAnalysis | null }) {
   const map = useMap();
   
   useEffect(() => {
-    if (route && route.points.length > 0) {
-      const bounds = L.latLngBounds(
-        route.points.map(point => [point.lat, point.lon])
-      );
-      map.fitBounds(bounds, { padding: [20, 20] });
+    if (gridAnalysis && gridAnalysis.gridData.length > 0) {
+      // Find the bounds of all grid squares
+      const allBounds: L.LatLngBounds[] = [];
+      
+      gridAnalysis.gridData.forEach(grid => {
+        const bounds = gridToLatLngBounds(grid.gridX, grid.gridY, gridAnalysis.gridConfig);
+        allBounds.push(bounds);
+      });
+      
+      if (allBounds.length > 0) {
+        // Create a bounds that encompasses all grid squares
+        const combinedBounds = allBounds.reduce((acc, bounds) => {
+          return acc.extend(bounds);
+        }, allBounds[0]);
+        
+        map.fitBounds(combinedBounds, { padding: [50, 50] });
+      }
     }
-  }, [route, map]);
+  }, [gridAnalysis, map]);
   
   return null;
 }
@@ -167,16 +179,16 @@ export default function Map({
         
         {/* Route polyline */}
         {route && route.points.length > 0 && (
-          <>
-            <Polyline
-              positions={route.points.map(point => [point.lat, point.lon])}
-              color="red"
-              weight={3}
-              opacity={0.7}
-            />
-            <FitBounds route={route} />
-          </>
+          <Polyline
+            positions={route.points.map(point => [point.lat, point.lon])}
+            color="red"
+            weight={3}
+            opacity={0.7}
+          />
         )}
+        
+        {/* Fit bounds to grid analysis area */}
+        <FitBounds gridAnalysis={gridAnalysis} />
       </MapContainer>
     </div>
   );
