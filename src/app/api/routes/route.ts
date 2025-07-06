@@ -37,14 +37,13 @@ export async function GET(request: NextRequest) {
 
         // Convert LoadedRoute format to API response format
         const routes = loadedRoutes.map(route => {
-            const distanceKm = route.totalDistance / 1000;
             const maxElevation = route.points.length > 0 ? Math.max(...route.points.map(p => p.elevation || 0)) : 0;
 
             return {
                 id: route.id,
                 name: route.name,
-                distance: route.error ? 'Parse Error' : `${distanceKm.toFixed(1)} km`,
-                elevation: route.error ? 'Parse Error' : `${Math.round(maxElevation)}m`,
+                distance: route.error ? null : route.totalDistance, // Distance in meters, null if error
+                elevation: route.error ? null : maxElevation, // Elevation in meters, null if error
                 points: route.points,
                 lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
                 error: route.error
@@ -71,9 +70,7 @@ export async function GET(request: NextRequest) {
                         id: route.id,
                         name: route.name,
                         points: route.points,
-
-                        // TODO just have a number on the API- change how the frontend uses that
-                        totalDistance: parseFloat(route.distance.replace(' km', '')) * 1000, // Convert back to meters
+                        totalDistance: route.distance as number, // Distance is now a number in meters
                         folder: folder as 'recent' | 'saved',
                         error: route.error
                     };

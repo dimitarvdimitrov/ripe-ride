@@ -15,8 +15,8 @@ interface HeatmapAnalysis {
 export interface Route {
   id: string;
   name: string;
-  distance: string;
-  elevation: string;
+  distance: number | null; // Distance in meters, null if error
+  elevation: number | null; // Max elevation in meters, null if error  
   lastDone?: string;
   points: { lat: number; lon: number; elevation?: number }[];
   error?: string;

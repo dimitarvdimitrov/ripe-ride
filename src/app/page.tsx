@@ -240,7 +240,9 @@ export default function Home() {
                   }}
                 >
                   <h3 className="font-medium text-gray-900">{route.name}</h3>
-                  <p className="text-sm text-gray-600">{route.distance}</p>
+                  <p className="text-sm text-gray-600">
+                    {route.error ? 'Parse Error' : route.distance ? `${(route.distance / 1000).toFixed(1)} km` : 'Unknown distance'}
+                  </p>
                   <p className="text-sm text-gray-500">Last done: {route.lastDone}</p>
                   {route.error && (
                     <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
@@ -266,8 +268,12 @@ export default function Home() {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{route.name}</h3>
-                      <p className="text-sm text-gray-600">{route.distance}</p>
-                      <p className="text-sm text-gray-500">Elevation: {route.elevation}</p>
+                      <p className="text-sm text-gray-600">
+                        {route.error ? 'Parse Error' : route.distance ? `${(route.distance / 1000).toFixed(1)} km` : 'Unknown distance'}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Elevation: {route.error ? 'Parse Error' : route.elevation ? `${Math.round(route.elevation)}m` : 'Unknown elevation'}
+                      </p>
                       {route.error && (
                         <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
                       )}
