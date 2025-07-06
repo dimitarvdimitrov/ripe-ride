@@ -15,12 +15,10 @@ export function processRoute(route: ProcessedRoute, heatmapTracker: HeatmapTrack
     const prev = route.points[i - 1];
     const curr = route.points[i];
 
-    // TODO there are a few places that call calculateDistance. Let's add a field to RoutePoint which is distanceSinceStart. That way we can calculate the distance between points just a single time. Do the same for midLat and midLon. Then deduplicate the places that
-    const distance = calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon);
-    
-    // Calculate the midpoint to determine which heatmap cell this segment belongs to
-    const midLat = (prev.lat + curr.lat) / 2;
-    const midLng = (prev.lon + curr.lon) / 2;
+    // Use pre-calculated values if available, otherwise calculate them
+    const distance = curr.distanceFromPrev ?? calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+    const midLat = curr.midLat ?? (prev.lat + curr.lat) / 2;
+    const midLng = curr.midLon ?? (prev.lon + curr.lon) / 2;
     
     // Add this segment distance to the heatmap cell containing the midpoint
     heatmapTracker.addDistance(midLat, midLng, distance);

@@ -6,6 +6,10 @@ export interface RoutePoint {
   lat: number;
   lon: number;
   elevation?: number;
+  distanceSinceStart?: number; // Cumulative distance from route start in meters
+  distanceFromPrev?: number; // Distance from previous point in meters
+  midLat?: number; // Midpoint latitude between this and previous point
+  midLon?: number; // Midpoint longitude between this and previous point
 }
 
 export interface LoadedRoute {
@@ -84,15 +88,34 @@ function parseGPXWithXML(gpxData: string): {
 }
 
 /**
- * Calculate total distance for a route
+ * Calculate total distance for a route and populate distance/midpoint fields
  */
 function calculateRouteDistance(points: RoutePoint[]): number {
   let totalDistance = 0;
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    totalDistance += calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+  
+  for (let i = 0; i < points.length; i++) {
+    if (i === 0) {
+      // First point
+      points[i].distanceSinceStart = 0;
+      points[i].distanceFromPrev = 0;
+      points[i].midLat = undefined;
+      points[i].midLon = undefined;
+    } else {
+      // Calculate distance from previous point
+      const prev = points[i - 1];
+      const curr = points[i];
+      const segmentDistance = calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon);
+      
+      totalDistance += segmentDistance;
+      
+      // Populate calculated fields
+      curr.distanceSinceStart = totalDistance;
+      curr.distanceFromPrev = segmentDistance;
+      curr.midLat = (prev.lat + curr.lat) / 2;
+      curr.midLon = (prev.lon + curr.lon) / 2;
+    }
   }
+  
   return totalDistance;
 }
 
