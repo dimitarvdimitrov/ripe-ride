@@ -8,6 +8,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get('folder');
     
+    // Get filter parameters for scoring
+    const gridSizeKm = parseFloat(searchParams.get('gridSize') || '5');
+    const distanceMin = parseFloat(searchParams.get('distanceMin') || '0');
+    const distanceMax = parseFloat(searchParams.get('distanceMax') || '200');
+    const elevationMin = parseFloat(searchParams.get('elevationMin') || '0');
+    const elevationMax = parseFloat(searchParams.get('elevationMax') || '2000');
+    
     if (!folder || (folder !== 'saved' && folder !== 'recent')) {
       return NextResponse.json({ error: 'Invalid folder parameter' }, { status: 400 });
     }
@@ -37,7 +44,8 @@ export async function GET(request: NextRequest) {
               elevation: 'No Points',
               points: [],
               lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
-              error: 'No track points found in GPX file'
+              error: 'No track points found in GPX file',
+              overlapScore: undefined
             };
           }
           
@@ -52,13 +60,17 @@ export async function GET(request: NextRequest) {
             totalDistance += calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon);
           }
 
+          // Calculate overlap score for saved routes
+          const distanceKm = totalDistance / 1000;
+          const maxElevation = points.length > 0 ? Math.max(...points.map(p => p.elevation || 0)) : 0;
+
           return {
             id: file.replace('.gpx', ''),
             name: routeName,
-            distance: `${(totalDistance / 1000).toFixed(1)} km`,
-            elevation: points.length > 0 ? `${Math.round(Math.max(...points.map(p => p.elevation || 0)))}m` : '0m',
+            distance: `${distanceKm.toFixed(1)} km`,
+            elevation: points.length > 0 ? `${Math.round(maxElevation)}m` : '0m',
             points: points,
-            lastDone: folder === 'recent' ? getRandomRecentDate() : undefined
+            lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
           };
         } catch (error) {
           console.error(`❌ Error parsing ${file}:`, error);
@@ -69,13 +81,34 @@ export async function GET(request: NextRequest) {
             elevation: 'Parse Error',
             points: [],
             lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
-            error: `Failed to parse GPX: ${error.message}`
+            error: `Failed to parse GPX: ${error.message}`,
+            overlapScore: undefined
           };
         }
       })
     );
 
-    return NextResponse.json(routes.filter(Boolean));
+    // Filter routes based on distance and elevation criteria
+    const filteredRoutes = routes.filter(route => {
+      if (!route || route.error) return true; // Keep error routes for debugging
+      
+      // Parse distance and elevation values
+      const distanceMatch = route.distance.match(/([\d.]+)\s*km/);
+      const elevationMatch = route.elevation.match(/([\d.]+)m/);
+      
+      if (!distanceMatch || !elevationMatch) return true; // Keep unparseable routes
+      
+      const routeDistance = parseFloat(distanceMatch[1]);
+      const routeElevation = parseFloat(elevationMatch[1]);
+      
+      // Apply filters
+      const distanceInRange = routeDistance >= distanceMin && routeDistance <= distanceMax;
+      const elevationInRange = routeElevation >= elevationMin && routeElevation <= elevationMax;
+      
+      return distanceInRange && elevationInRange;
+    });
+
+    return NextResponse.json(filteredRoutes);
   } catch (error) {
     console.error('Error reading routes:', error);
     return NextResponse.json({ error: 'Failed to read routes' }, { status: 500 });

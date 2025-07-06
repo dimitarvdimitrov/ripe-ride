@@ -1,25 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useGridAnalysis } from '@/hooks/useGridAnalysis';
-
-// Simple debounce hook
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
+import { useRoutes, Route } from '@/hooks/useRoutes';
+import { useDebounce } from '@/hooks/useDebounce';
 
 // Dynamic import to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('@/components/Map'), {
@@ -27,65 +12,61 @@ const Map = dynamic(() => import('@/components/Map'), {
   loading: () => <p>Loading map...</p>
 });
 
-interface Route {
-  id: string;
-  name: string;
-  distance: string;
-  elevation: string;
-  lastDone?: string;
-  points: { lat: number; lon: number; elevation?: number }[];
-  error?: string;
-}
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
-  const [recentRoutes, setRecentRoutes] = useState<Route[]>([]);
-  const [savedRoutes, setSavedRoutes] = useState<Route[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-  const [gridSizeKm, setGridSizeKm] = useState(5); // Page decides grid size
+  const [gridSizeKm, setGridSizeKm] = useState(5);
   
   // Filter states
-  const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]); // km
-  const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]); // meters
+  const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]);
+  const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]);
 
-  // Debounce grid size to prevent excessive requests
+  // Debounce values to prevent excessive requests
   const debouncedGridSize = useDebounce(gridSizeKm, 100);
+  const debouncedDistanceRange = useDebounce(distanceRange, 100);
+  const debouncedElevationRange = useDebounce(elevationRange, 100);
   
-  // Use React Query for grid analysis
+  // Fetch routes using React Query with debounced filters
+  const {
+    data: recentRoutes = [],
+    isLoading: loadingRecent,
+    error: recentError
+  } = useRoutes(
+    'recent',
+    debouncedGridSize,
+    debouncedDistanceRange[0],
+    debouncedDistanceRange[1],
+    debouncedElevationRange[0],
+    debouncedElevationRange[1]
+  );
+
+  const {
+    data: savedRoutes = [],
+    isLoading: loadingSaved,
+    error: savedError
+  } = useRoutes(
+    'saved',
+    debouncedGridSize,
+    debouncedDistanceRange[0],
+    debouncedDistanceRange[1],
+    debouncedElevationRange[0],
+    debouncedElevationRange[1]
+  );
+
+  // Use React Query for grid analysis - always use recent routes for grid display
   const {
     data: gridAnalysis,
     isLoading: loadingGrid,
     error: gridError
   } = useGridAnalysis(
-    activeTab,
+    'recent',
     debouncedGridSize,
-    !loading && (recentRoutes.length > 0 || savedRoutes.length > 0) // Only enable when routes are loaded
+    recentRoutes.length > 0
   );
 
-  useEffect(() => {
-    const fetchRoutes = async () => {
-      try {
-        const [recentResponse, savedResponse] = await Promise.all([
-          fetch('/api/routes?folder=recent'),
-          fetch('/api/routes?folder=saved')
-        ]);
+  const loading = loadingRecent || loadingSaved;
 
-        if (recentResponse.ok && savedResponse.ok) {
-          const recent = await recentResponse.json();
-          const saved = await savedResponse.json();
-          setRecentRoutes(recent);
-          setSavedRoutes(saved);
-        }
-      } catch (error) {
-        console.error('Error fetching routes:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRoutes();
-  }, []);
 
   const hasCurrentAnalysis = gridAnalysis !== undefined;
 
@@ -184,25 +165,26 @@ export default function Home() {
           {hasCurrentAnalysis && gridAnalysis && (
             <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-3">
               <div className="text-xs text-blue-800">
-                <p>📊 {gridAnalysis.routesProcessed} {activeTab} routes analyzed</p>
+                <p>📊 {gridAnalysis.routesProcessed} recent routes analyzed</p>
                 <p>🎯 {gridAnalysis.stats.totalGrids} grid squares with routes</p>
                 <p>📏 {(gridAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
+                <p className="mt-1 text-blue-600">Grid shows recent route coverage only</p>
               </div>
             </div>
           )}
           
-          {loadingGrid && (
+          {(loadingGrid || loading) && (
             <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
               <div className="text-xs text-yellow-800">
-                <p>⏳ Analyzing grid density...</p>
+                <p>⏳ {loadingGrid ? 'Analyzing grid density...' : 'Loading routes...'}</p>
               </div>
             </div>
           )}
           
-          {gridError && (
+          {(gridError || recentError || savedError) && (
             <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
               <div className="text-xs text-red-800">
-                <p>❌ Failed to analyze grid: {gridError.message}</p>
+                <p>❌ Error: {gridError?.message || recentError?.message || savedError?.message}</p>
               </div>
             </div>
           )}
@@ -252,12 +234,16 @@ export default function Home() {
                     setSelectedRoute(route);
                   }}
                 >
-                  <h3 className="font-medium text-gray-900">{route.name}</h3>
-                  <p className="text-sm text-gray-600">{route.distance}</p>
-                  <p className="text-sm text-gray-500">Elevation: {route.elevation}</p>
-                  {route.error && (
-                    <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
-                  )}
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">{route.name}</h3>
+                      <p className="text-sm text-gray-600">{route.distance}</p>
+                      <p className="text-sm text-gray-500">Elevation: {route.elevation}</p>
+                      {route.error && (
+                        <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

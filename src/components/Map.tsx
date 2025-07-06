@@ -207,8 +207,8 @@ export default function Map({
         {route && route.points.length > 0 && (
           <Polyline
             positions={route.points.map(point => [point.lat, point.lon])}
-            color="red"
-            weight={3}
+            color="#fc4c02"
+            weight={3.5}
             opacity={0.7}
           />
         )}
