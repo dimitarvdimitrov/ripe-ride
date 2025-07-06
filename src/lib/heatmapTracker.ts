@@ -1,11 +1,11 @@
 export interface HeatmapTracker {
   /**
    * Add distance to the heatmap cell at the given coordinates
-   * @param cellX Cell X coordinate
-   * @param cellY Cell Y coordinate
+   * @param lat Latitude coordinate
+   * @param lng Longitude coordinate
    * @param distance Distance in meters to add to this heatmap cell
    */
-  addDistance(cellX: number, cellY: number, distance: number): void;
+  addDistance(lat: number, lng: number, distance: number): void;
 
   /**
    * Get total distance for a heatmap cell
@@ -25,6 +25,12 @@ export interface HeatmapTracker {
    * Reset all heatmap data
    */
   reset(): void;
+
+  /**
+   * Get the raw heatmap data as a Map
+   * @returns Map with cellKey -> distance
+   */
+  getHeatmap(): Map<string, number>;
 }
 
 export interface HeatmapConfig {
@@ -70,7 +76,6 @@ export class ArrayHeatmapTracker implements HeatmapTracker {
   addDistance(lat: number, lng: number, distance: number): void {
     const { cellX, cellY } = latLngToHeatmap(lat, lng, this.heatmapConfig);
     const key = this.getCellKey(cellX, cellY);
-    
     this.heatmap.set(key, (this.heatmap.get(key) || 0) + distance);
   }
 
@@ -93,4 +98,9 @@ export class ArrayHeatmapTracker implements HeatmapTracker {
   reset(): void {
     this.heatmap.clear();
   }
+
+  getHeatmap(): Map<string, number> {
+    return new Map(this.heatmap);
+  }
+
 }

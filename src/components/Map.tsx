@@ -20,6 +20,9 @@ interface Route {
   elevation: string;
   lastDone?: string;
   points: { lat: number; lon: number; elevation?: number }[];
+  error?: string;
+  overlapScore?: number;
+  routeHeatmap?: HeatmapAnalysis;
 }
 
 interface HeatmapData {
@@ -50,6 +53,8 @@ interface MapProps {
   heatmapAnalysis?: HeatmapAnalysis | null;
   heatmapSizeKm: number;
   onHeatmapSizeChange: (size: number) => void;
+  heatmapMode: 'general' | 'per-route';
+  onHeatmapModeChange: (mode: 'general' | 'per-route') => void;
 }
 
 // Convert heatmap coordinates to lat/lng bounds
@@ -66,6 +71,7 @@ function cellToLatLngBounds(cellX: number, cellY: number, heatmapConfig: { heatm
   
   return L.latLngBounds([south, west], [north, east]);
 }
+
 
 // Get color based on distance density
 function getHeatmapColor(distance: number, maxDistance: number): { color: string, fillColor: string, fillOpacity: number } {
@@ -96,7 +102,7 @@ function HeatmapDensityOverlay({ showHeatmap, heatmapAnalysis }: { showHeatmap: 
   
   return (
     <>
-      {heatmapData.map((cell, index) => {
+      {heatmapData.map((cell) => {
         const bounds = cellToLatLngBounds(cell.cellX, cell.cellY, heatmapConfig);
         const colorStyle = getHeatmapColor(cell.distance, stats.maxDistance);
         
@@ -151,7 +157,9 @@ export default function Map({
   route,
   heatmapAnalysis,
   heatmapSizeKm,
-  onHeatmapSizeChange
+  onHeatmapSizeChange,
+  heatmapMode,
+  onHeatmapModeChange
 }: MapProps) {
   const [showHeatmap, setShowHeatmap] = useState(true);
   
@@ -164,6 +172,19 @@ export default function Map({
           className="w-full px-3 py-1 rounded text-sm font-medium hover:bg-gray-50 border"
         >
           {showHeatmap ? 'Hide Heatmap' : 'Show Heatmap'}
+        </button>
+        
+        {/* Heatmap Mode Toggle */}
+        <button
+          onClick={() => onHeatmapModeChange(heatmapMode === 'general' ? 'per-route' : 'general')}
+          className={`w-full px-3 py-1 rounded text-sm font-medium border transition-colors ${
+            heatmapMode === 'per-route' 
+              ? 'bg-blue-100 text-blue-700 border-blue-300' 
+              : 'hover:bg-gray-50 border-gray-300'
+          }`}
+          disabled={heatmapMode === 'per-route' && !route?.routeHeatmap}
+        >
+          {heatmapMode === 'general' ? 'Show Route Heatmap' : 'Show General Heatmap'}
         </button>
         
         {/* Heatmap Size Control */}
@@ -200,8 +221,13 @@ export default function Map({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* Always show density heatmap if analysis is available */}
-        {heatmapAnalysis && <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={heatmapAnalysis} />}
+        {/* Show density heatmap */}
+        {(() => {
+          if (heatmapMode === 'per-route' && route?.routeHeatmap) {
+            return <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={route.routeHeatmap} />;
+          }
+          return heatmapAnalysis && <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={heatmapAnalysis} />;
+        })()}
         
         {/* Route polyline */}
         {route && route.points.length > 0 && (
@@ -214,7 +240,7 @@ export default function Map({
         )}
         
         {/* Fit bounds to heatmap analysis area */}
-        <FitBounds heatmapAnalysis={heatmapAnalysis} />
+        <FitBounds heatmapAnalysis={heatmapAnalysis || null} />
       </MapContainer>
     </div>
   );

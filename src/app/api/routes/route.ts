@@ -1,168 +1,236 @@
 import {NextRequest, NextResponse} from 'next/server';
-import {readdir, readFile} from 'fs/promises';
-import path from 'path';
-import { calculateDistance } from '@/lib/distance';
+import {ArrayHeatmapTracker} from '@/lib/heatmapTracker';
+import {DEFAULT_REFERENCE_POINT, type HeatmapConfig} from '@/lib/heatmapConfig';
+import {FileSystemRouteLoader, type LoadedRoute} from '@/lib/routeLoader';
+import {processRoute} from '@/lib/routeProcessor';
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const folder = searchParams.get('folder');
-    
-    // Get filter parameters for scoring
-    const heatmapSizeKm = parseFloat(searchParams.get('heatmapSize') || '5');
-    const distanceMin = parseFloat(searchParams.get('distanceMin') || '0');
-    const distanceMax = parseFloat(searchParams.get('distanceMax') || '200');
-    const elevationMin = parseFloat(searchParams.get('elevationMin') || '0');
-    const elevationMax = parseFloat(searchParams.get('elevationMax') || '2000');
-    
-    if (!folder || (folder !== 'saved' && folder !== 'recent')) {
-      return NextResponse.json({ error: 'Invalid folder parameter' }, { status: 400 });
-    }
+    try {
+        const {searchParams} = new URL(request.url);
+        const folder = searchParams.get('folder');
 
-    const folderPath = path.join(process.cwd(), folder);
-    const files = await readdir(folderPath);
-    const gpxFiles = files.filter(file => file.endsWith('.gpx'));
+        // Get filter parameters for scoring
+        const heatmapSizeKm = parseFloat(searchParams.get('heatmapSize') || '5');
+        const distanceMin = parseFloat(searchParams.get('distanceMin') || '0');
+        const distanceMax = parseFloat(searchParams.get('distanceMax') || '200');
+        const elevationMin = parseFloat(searchParams.get('elevationMin') || '0');
+        const elevationMax = parseFloat(searchParams.get('elevationMax') || '2000');
 
-    const routes = await Promise.all(
-      gpxFiles.map(async (file) => {
-        try {
-          const filePath = path.join(folderPath, file);
-          const gpxData = await readFile(filePath, 'utf-8');
-          
-          console.log(`📍 Parsing ${file}`);
-          
-          // Parse GPX data using XML parser
-          const parseResult = parseGPXWithXML(gpxData);
-          const points = parseResult.points;
-          console.log(`📍 Found ${points.length} points in ${file}`);
-          
-          if (points.length === 0) {
-            return {
-              id: file.replace('.gpx', ''),
-              name: file.replace('.gpx', ''),
-              distance: 'No Points',
-              elevation: 'No Points',
-              points: [],
-              lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
-              error: 'No track points found in GPX file',
-              overlapScore: undefined
-            };
-          }
-          
-          // Use extracted name or fallback to filename
-          const routeName = parseResult.name || file.replace('.gpx', '');
-          
-          // Calculate total distance
-          let totalDistance = 0;
-          for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1];
-            const curr = points[i];
-            totalDistance += calculateDistance(prev.lat, prev.lon, curr.lat, curr.lon);
-          }
-
-          // Calculate overlap score for saved routes
-          const distanceKm = totalDistance / 1000;
-          const maxElevation = points.length > 0 ? Math.max(...points.map(p => p.elevation || 0)) : 0;
-
-          return {
-            id: file.replace('.gpx', ''),
-            name: routeName,
-            distance: `${distanceKm.toFixed(1)} km`,
-            elevation: points.length > 0 ? `${Math.round(maxElevation)}m` : '0m',
-            points: points,
-            lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
-          };
-        } catch (error) {
-          console.error(`❌ Error parsing ${file}:`, error);
-          return {
-            id: file.replace('.gpx', ''),
-            name: file.replace('.gpx', ''),
-            distance: 'Parse Error',
-            elevation: 'Parse Error',
-            points: [],
-            lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
-            error: `Failed to parse GPX: ${error.message}`,
-            overlapScore: undefined
-          };
+        if (!folder || (folder !== 'saved' && folder !== 'recent')) {
+            return NextResponse.json({error: 'Invalid folder parameter'}, {status: 400});
         }
-      })
-    );
 
-    // Filter routes based on distance and elevation criteria
-    const filteredRoutes = routes.filter(route => {
-      if (!route || route.error) return true; // Keep error routes for debugging
-      
-      // Parse distance and elevation values
-      const distanceMatch = route.distance.match(/([\d.]+)\s*km/);
-      const elevationMatch = route.elevation.match(/([\d.]+)m/);
-      
-      if (!distanceMatch || !elevationMatch) return true; // Keep unparseable routes
-      
-      const routeDistance = parseFloat(distanceMatch[1]);
-      const routeElevation = parseFloat(elevationMatch[1]);
-      
-      // Apply filters
-      const distanceInRange = routeDistance >= distanceMin && routeDistance <= distanceMax;
-      const elevationInRange = routeElevation >= elevationMin && routeElevation <= elevationMax;
-      
-      return distanceInRange && elevationInRange;
-    });
+        // Use the route loader to load routes with filters
+        const routeLoader = new FileSystemRouteLoader();
+        const loadedRoutes = await routeLoader.loadFromFolder(folder, {
+            distanceMin,
+            distanceMax,
+            elevationMin,
+            elevationMax
+        });
 
-    return NextResponse.json(filteredRoutes);
-  } catch (error) {
-    console.error('Error reading routes:', error);
-    return NextResponse.json({ error: 'Failed to read routes' }, { status: 500 });
-  }
-}
+        // Convert LoadedRoute format to API response format
+        const routes = loadedRoutes.map(route => {
+            const distanceKm = route.totalDistance / 1000;
+            const maxElevation = route.points.length > 0 ? Math.max(...route.points.map(p => p.elevation || 0)) : 0;
 
+            return {
+                id: route.id,
+                name: route.name,
+                distance: route.error ? 'Parse Error' : `${distanceKm.toFixed(1)} km`,
+                elevation: route.error ? 'Parse Error' : `${Math.round(maxElevation)}m`,
+                points: route.points,
+                lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
+                error: route.error
+            };
+        });
 
-function parseGPXWithXML(gpxData: string): {
-  points: { lat: number; lon: number; elevation?: number }[];
-  name?: string;
-} {
-  // For Node.js, we need to use a different XML parser
-  const { JSDOM } = require('jsdom');
-  const dom = new JSDOM();
-  const parser = new dom.window.DOMParser();
-  
-  try {
-    const xmlDoc = parser.parseFromString(gpxData, 'text/xml');
-    
-    // Check for parsing errors
-    const parserError = xmlDoc.querySelector('parsererror');
-    if (parserError) {
-      throw new Error('XML parsing failed: ' + parserError.textContent);
+        // Calculate overlap scores for saved routes
+        if (folder === 'saved') {
+            console.log(`📊 Calculating overlap scores for ${routes.length} saved routes...`);
+
+            // Generate the comprehensive heatmap once for all saved routes
+            const allRoutesHeatmap = await generateRecentRoutesHeatmap(heatmapSizeKm);
+
+            // Calculate overlap score for each saved route
+            const routesWithOverlapScores = await Promise.all(
+                routes.map(async (route) => {
+                if (route.error || route.points.length === 0) {
+                    return {...route, overlapScore: undefined, routeHeatmap: undefined};
+                }
+
+                try {
+                    // Convert API route back to LoadedRoute format for processing
+                    const loadedRoute: LoadedRoute = {
+                        id: route.id,
+                        name: route.name,
+                        points: route.points,
+
+                        // TODO just have a number on the API- change how the frontend uses that
+                        totalDistance: parseFloat(route.distance.replace(' km', '')) * 1000, // Convert back to meters
+                        folder: folder as 'recent' | 'saved',
+                        // TODO don't calculate score for any routes with errors - do this in a fucntional way where we filter out routes with errors
+                        error: route.error
+                    };
+
+                    const {
+                        score,
+                        routeHeatmap
+                    } = await calculateOverlapScore(loadedRoute, heatmapSizeKm, allRoutesHeatmap);
+                    const totalDistance = routeHeatmap.reduce((sum, cell) => sum + cell.distance, 0);
+                    const maxDistance = Math.max(...routeHeatmap.map(cell => cell.distance));
+
+                    const routeHeatmapAnalysis = {
+                        // TODO create a config at the top of the handler and then also propagate this config to calculateOverlapScore above so that doesn't need to create its own config
+                        // TODO after you do the above TODO, then just remove the heatmapConfig from this response
+                        heatmapConfig: {
+                            heatmapSizeKm,
+                            referencePoint: DEFAULT_REFERENCE_POINT
+                        },
+                        heatmapData: routeHeatmap,
+                        stats: {
+                            totalCells: routeHeatmap.length,
+                            totalDistance,
+                            averageDistance: routeHeatmap.length > 0 ? totalDistance / routeHeatmap.length : 0,
+                            maxDistance
+                        },
+                        routesProcessed: 1
+                    };
+
+                    return {
+                        ...route,
+                        overlapScore: score,
+                        routeHeatmap: routeHeatmapAnalysis
+                    };
+                } catch (error) {
+                    console.error(`Error calculating overlap score for ${route.id}:`, error);
+                    return {...route, overlapScore: undefined, routeHeatmap: undefined};
+                }
+            })
+            );
+
+            return NextResponse.json(routesWithOverlapScores);
+        }
+
+        // For recent routes, just return without overlap scores
+        return NextResponse.json(routes);
+
+    } catch (error) {
+        console.error('Error reading routes:', error);
+        return NextResponse.json({error: 'Failed to read routes'}, {status: 500});
     }
-    
-    // Extract route name
-    const nameElement = xmlDoc.querySelector('trk > name') || xmlDoc.querySelector('metadata > name');
-    const name = nameElement?.textContent || undefined;
-    
-    // Extract track points
-    const trkptElements = xmlDoc.querySelectorAll('trkpt');
-    const points: { lat: number; lon: number; elevation?: number }[] = [];
-    
-    trkptElements.forEach(trkpt => {
-      const lat = parseFloat(trkpt.getAttribute('lat') || '');
-      const lon = parseFloat(trkpt.getAttribute('lon') || '');
-      
-      if (!isNaN(lat) && !isNaN(lon)) {
-        // Try to get elevation
-        const eleElement = trkpt.querySelector('ele');
-        const elevation = eleElement ? parseFloat(eleElement.textContent || '0') : undefined;
-        
-        points.push({ lat, lon, elevation });
-      }
-    });
-    
-    return { points, name };
-  } catch (error) {
-    console.error('XML parsing error:', error);
-    return { points: [] };
-  }
 }
+
 
 function getRandomRecentDate(): string {
-  const dates = ['2 days ago', '1 week ago', '3 days ago', '5 days ago', '1 day ago', '4 days ago'];
-  return dates[Math.floor(Math.random() * dates.length)];
+    const dates = ['2 days ago', '1 week ago', '3 days ago', '5 days ago', '1 day ago', '4 days ago'];
+    return dates[Math.floor(Math.random() * dates.length)];
+}
+
+// Generate heatmap for a single route
+function generateSingleRouteHeatmap(
+    route: LoadedRoute,
+    heatmapConfig: HeatmapConfig
+): { cellX: number, cellY: number, distance: number }[] {
+    const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
+
+    // Process the route using the route processor
+    processRoute(route, heatmapTracker);
+
+    return heatmapTracker.getAllCells();
+}
+
+// Load and generate heatmap for all recent routes
+async function generateRecentRoutesHeatmap(heatmapSizeKm: number): Promise<{
+    cellX: number,
+    cellY: number,
+    distance: number
+}[]> {
+    try {
+        const heatmapConfig: HeatmapConfig = {
+            heatmapSizeKm,
+            referencePoint: DEFAULT_REFERENCE_POINT
+        };
+
+        const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
+
+        // Load all recent routes using the route loader (no filters for heatmap generation)
+        const routeLoader = new FileSystemRouteLoader();
+        const recentRoutes = await routeLoader.loadFromFolder('recent');
+
+        // Process each recent route
+        for (const route of recentRoutes) {
+            if (!route.error && route.points.length > 0) {
+                processRoute(route, heatmapTracker);
+            }
+        }
+
+        return heatmapTracker.getAllCells();
+    } catch (error) {
+        console.error('Error loading recent routes for heatmap:', error);
+        return [];
+    }
+}
+
+// Calculate actual overlap score by comparing single route vs all recent routes heatmap
+function calculateActualOverlapScore(
+    singleRouteHeatmap: { cellX: number, cellY: number, distance: number }[],
+    allRoutesHeatmap: { cellX: number, cellY: number, distance: number }[]
+): number {
+    if (singleRouteHeatmap.length === 0) {
+        return 1.0; // Maximum overlap if route has no coverage
+    }
+
+    let totalRouteDistance = 0;
+    let weightedOverlap = 0;
+
+    // Calculate total distance in the single route
+    for (const cell of singleRouteHeatmap.values()) {
+        totalRouteDistance += cell.distance;
+    }
+
+    if (totalRouteDistance === 0) {
+        return 1.0; // Maximum overlap if no distance covered
+    }
+
+    // For each cell in the single route heatmap
+    // TODO after having made the change to use HeatmapTracker here lets have a method which returns an iterator over non-empty cells. Or perhaps has something like `eachNonEmpty(()=>{})` function
+    for (const cell of singleRouteHeatmap) {
+        // Calculate the percentage this cell represents of the total route
+        const cellPercentage = cell.distance / totalRouteDistance;
+
+        // Get the coverage of this same cell in the comprehensive heatmap
+        // TODO add a method on HeatmapTracker which will find a cell given its x and y
+        const allRoutesCell = allRoutesHeatmap.find((value) => {
+            return value.cellX === cell.cellX && value.cellY === cell.cellY
+        });
+
+        // Weight the overlap by how much of the route passes through this cell
+        // Higher allRoutesCell = more overlap in this area
+        weightedOverlap += cellPercentage * (allRoutesCell?.distance || 0);
+    }
+
+    // Apply logarithmic scaling to spread out the values
+    return weightedOverlap;
+}
+
+// Calculate overlap score using proper heatmap analysis
+async function calculateOverlapScore(
+    route: LoadedRoute,
+    heatmapSizeKm: number,
+    // TODO replace all instances of { cellX: number, cellY: number, distance: number } with a proper type - HeatmapTracker and then replace the hardocded array throughout the app with that type
+    allRoutesHeatmap: { cellX: number, cellY: number, distance: number }[]
+): Promise<{ score: number; routeHeatmap: { cellX: number, cellY: number, distance: number }[] }> {
+    const heatmapConfig: HeatmapConfig = {
+        heatmapSizeKm,
+        referencePoint: DEFAULT_REFERENCE_POINT
+    };
+
+    // Generate heatmap for this single route
+    const singleRouteHeatmap = generateSingleRouteHeatmap(route, heatmapConfig);
+
+    // Calculate the actual overlap score
+    const score = calculateActualOverlapScore(singleRouteHeatmap, allRoutesHeatmap);
+
+    return {score, routeHeatmap: singleRouteHeatmap};
 }

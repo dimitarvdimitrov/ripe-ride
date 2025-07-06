@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useHeatmapAnalysis } from '@/hooks/useHeatmapAnalysis';
 import { useRoutes, Route } from '@/hooks/useRoutes';
@@ -17,6 +17,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [heatmapSizeKm, setHeatmapSizeKm] = useState(5);
+  const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
   
   // Filter states
   const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]);
@@ -54,7 +55,7 @@ export default function Home() {
     debouncedElevationRange[1]
   );
 
-  // Use React Query for heatmap analysis - always use recent routes for heatmap display
+  // Use React Query for heatmap analysis - always use recent routes for general heatmap display
   const {
     data: heatmapAnalysis,
     isLoading: loadingHeatmap,
@@ -67,8 +68,31 @@ export default function Home() {
 
   const loading = loadingRecent || loadingSaved;
 
+  // For per-route mode, use the selected route's heatmap data
+  const currentHeatmapAnalysis = heatmapMode === 'per-route' ? selectedRoute?.routeHeatmap : heatmapAnalysis;
+  const hasCurrentAnalysis = currentHeatmapAnalysis !== undefined;
 
-  const hasCurrentAnalysis = heatmapAnalysis !== undefined;
+  // Calculate min/max overlap scores for dynamic coloring
+  const routesWithScores = savedRoutes.filter(route => route.overlapScore !== undefined);
+  const overlapScores = routesWithScores.map(route => route.overlapScore!);
+  const minOverlapScore = overlapScores.length > 0 ? Math.min(...overlapScores) : 0;
+  const maxOverlapScore = overlapScores.length > 0 ? Math.max(...overlapScores) : 1;
+  
+  // Function to get color and icon based on overlap score spectrum
+  const getOverlapScoreStyle = (score: number) => {
+    if (overlapScores.length === 0) return { color: 'bg-gray-500', icon: '○' };
+    
+    const range = maxOverlapScore - minOverlapScore;
+    const normalizedScore = range === 0 ? 0 : (score - minOverlapScore) / range;
+    
+    if (normalizedScore < 0.33) {
+      return { color: 'bg-green-500', icon: '★' }; // Most diverse (lowest overlap)
+    } else if (normalizedScore < 0.67) {
+      return { color: 'bg-yellow-500', icon: '◐' }; // Moderately diverse
+    } else {
+      return { color: 'bg-red-500', icon: '○' }; // Least diverse (highest overlap)
+    }
+  };
 
   return (
     <div className="h-screen flex">
@@ -162,13 +186,18 @@ export default function Home() {
         {/* Route List */}
         <div className="flex-1 overflow-y-auto p-6">
           {/* Heatmap Analysis Status */}
-          {hasCurrentAnalysis && heatmapAnalysis && (
+          {hasCurrentAnalysis && currentHeatmapAnalysis && (
             <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-3">
               <div className="text-xs text-blue-800">
-                <p>📊 {heatmapAnalysis.routesProcessed} recent routes analyzed</p>
-                <p>🎯 {heatmapAnalysis.stats.totalCells} heatmap cells with routes</p>
-                <p>📏 {(heatmapAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
-                <p className="mt-1 text-blue-600">Heatmap shows recent route coverage only</p>
+                <p>📊 {currentHeatmapAnalysis.routesProcessed} {heatmapMode === 'per-route' ? 'route' : 'recent routes'} analyzed</p>
+                <p>🎯 {currentHeatmapAnalysis.stats.totalCells} heatmap cells with routes</p>
+                <p>📏 {(currentHeatmapAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
+                <p className="mt-1 text-blue-600">
+                  {heatmapMode === 'per-route' 
+                    ? `Showing ${selectedRoute?.name || 'selected route'} coverage`
+                    : 'Heatmap shows recent route coverage only'
+                  }
+                </p>
               </div>
             </div>
           )}
@@ -243,6 +272,16 @@ export default function Home() {
                         <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
                       )}
                     </div>
+                    {route.overlapScore !== undefined && (
+                      <div className="ml-2 flex flex-col items-center">
+                        <div className="text-xs text-gray-500 mb-1">Diversity</div>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                          getOverlapScoreStyle(route.overlapScore).color
+                        }`}>
+                          {getOverlapScoreStyle(route.overlapScore).icon}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -259,9 +298,11 @@ export default function Home() {
             : [52.3676, 4.9041]} 
           zoom={13}
           route={selectedRoute}
-          heatmapAnalysis={heatmapAnalysis}
+          heatmapAnalysis={currentHeatmapAnalysis}
           heatmapSizeKm={heatmapSizeKm}
           onHeatmapSizeChange={setHeatmapSizeKm}
+          heatmapMode={heatmapMode}
+          onHeatmapModeChange={setHeatmapMode}
         />
       </div>
     </div>

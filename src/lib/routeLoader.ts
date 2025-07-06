@@ -21,12 +21,22 @@ export interface RouteLoader {
   /**
    * Load routes from a specific folder
    */
-  loadFromFolder(folder: 'recent' | 'saved'): Promise<LoadedRoute[]>;
+  loadFromFolder(folder: 'recent' | 'saved', filters?: {
+    distanceMin?: number;
+    distanceMax?: number;
+    elevationMin?: number;
+    elevationMax?: number;
+  }): Promise<LoadedRoute[]>;
   
   /**
    * Load routes from both folders
    */
-  loadAll(): Promise<LoadedRoute[]>;
+  loadAll(filters?: {
+    distanceMin?: number;
+    distanceMax?: number;
+    elevationMin?: number;
+    elevationMax?: number;
+  }): Promise<LoadedRoute[]>;
 }
 
 /**
@@ -96,7 +106,12 @@ export class FileSystemRouteLoader implements RouteLoader {
     this.basePath = basePath;
   }
   
-  async loadFromFolder(folder: 'recent' | 'saved'): Promise<LoadedRoute[]> {
+  async loadFromFolder(folder: 'recent' | 'saved', filters?: {
+    distanceMin?: number;
+    distanceMax?: number;
+    elevationMin?: number;
+    elevationMax?: number;
+  }): Promise<LoadedRoute[]> {
     try {
       const folderPath = path.join(this.basePath, folder);
       const files = await readdir(folderPath);
@@ -104,7 +119,7 @@ export class FileSystemRouteLoader implements RouteLoader {
       
       console.log(`📍 Loading ${gpxFiles.length} GPX files from ${folder}/`);
 
-      return await Promise.all(
+      const routes = await Promise.all(
           gpxFiles.map(async (file) => {
             try {
               const filePath = path.join(folderPath, file);
@@ -151,16 +166,43 @@ export class FileSystemRouteLoader implements RouteLoader {
             }
           })
       );
+
+      // Apply filters if provided
+      if (filters) {
+        return routes.filter(route => {
+          if (route.error) return true; // Keep error routes for debugging
+          
+          const distanceKm = route.totalDistance / 1000;
+          const maxElevation = route.points.length > 0 ? Math.max(...route.points.map(p => p.elevation || 0)) : 0;
+          
+          // Apply distance filter
+          if (filters.distanceMin !== undefined && distanceKm < filters.distanceMin) return false;
+          if (filters.distanceMax !== undefined && distanceKm > filters.distanceMax) return false;
+          
+          // Apply elevation filter
+          if (filters.elevationMin !== undefined && maxElevation < filters.elevationMin) return false;
+          if (filters.elevationMax !== undefined && maxElevation > filters.elevationMax) return false;
+          
+          return true;
+        });
+      }
+
+      return routes;
     } catch (error) {
       console.error(`Error reading ${folder} folder:`, error);
       return [];
     }
   }
   
-  async loadAll(): Promise<LoadedRoute[]> {
+  async loadAll(filters?: {
+    distanceMin?: number;
+    distanceMax?: number;
+    elevationMin?: number;
+    elevationMax?: number;
+  }): Promise<LoadedRoute[]> {
     const [recentRoutes, savedRoutes] = await Promise.all([
-      this.loadFromFolder('recent'),
-      this.loadFromFolder('saved')
+      this.loadFromFolder('recent', filters),
+      this.loadFromFolder('saved', filters)
     ]);
     
     return [...recentRoutes, ...savedRoutes];

@@ -1,5 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
 
+interface HeatmapData {
+  cellX: number;
+  cellY: number;
+  distance: number;
+}
+
+interface HeatmapAnalysis {
+  heatmapConfig: {
+    heatmapSizeKm: number;
+    referencePoint: [number, number];
+  };
+  heatmapData: HeatmapData[];
+  stats: {
+    totalCells: number;
+    totalDistance: number;
+    averageDistance: number;
+    maxDistance: number;
+  };
+  routesProcessed: number;
+}
+
 export interface Route {
   id: string;
   name: string;
@@ -9,6 +30,7 @@ export interface Route {
   points: { lat: number; lon: number; elevation?: number }[];
   error?: string;
   overlapScore?: number;
+  routeHeatmap?: HeatmapAnalysis;
 }
 
 async function fetchRoutes(
