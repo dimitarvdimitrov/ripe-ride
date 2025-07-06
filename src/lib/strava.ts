@@ -36,21 +36,36 @@ export class StravaAPIClient {
 
   constructor(private accessToken: string) {}
 
-  async getActivities(page = 1, perPage = 30): Promise<StravaActivity[]> {
-    const response = await fetch(
-      `${this.baseURL}/athlete/activities?page=${page}&per_page=${perPage}`,
-      {
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-        },
-      }
-    );
+  async getActivities(page = 1, perPage = 30, afterDate?: Date): Promise<StravaActivity[]> {
+    const url = new URL(`${this.baseURL}/athlete/activities`);
+    url.searchParams.set('page', page.toString());
+    url.searchParams.set('per_page', perPage.toString());
+    
+    // Add date filter if provided (convert to epoch timestamp)
+    if (afterDate) {
+      const epochTimestamp = Math.floor(afterDate.getTime() / 1000);
+      url.searchParams.set('after', epochTimestamp.toString());
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`,
+      },
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch activities: ${response.statusText}`);
     }
 
     return response.json();
+  }
+
+  async getRecentActivities(page = 1, perPage = 30): Promise<StravaActivity[]> {
+    // Get activities from the last 2 weeks
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    
+    return this.getActivities(page, perPage, twoWeeksAgo);
   }
 
   async getRoutes(page = 1, perPage = 30): Promise<StravaRoute[]> {

@@ -20,12 +20,14 @@ export async function POST(request: NextRequest) {
     console.log('📡 Fetching routes from Strava...');
     
     // Fetch both activities and routes
+    // Activities: Only get activities from the last 2 weeks to avoid syncing too much data
+    // Routes: Get all saved routes (no date filter for routes)
     const [activities, routes] = await Promise.all([
-      stravaClient.getActivities(1, 50), // Get last 50 activities
+      stravaClient.getRecentActivities(1, 50), // Get activities from last 2 weeks
       stravaClient.getRoutes(1, 50), // Get last 50 routes
     ]);
 
-    console.log(`📊 Found ${activities.length} activities and ${routes.length} routes`);
+    console.log(`📊 Found ${activities.length} recent activities and ${routes.length} routes`);
 
     // Ensure directories exist
     const recentDir = path.join(process.cwd(), 'recent');
@@ -41,44 +43,42 @@ export async function POST(request: NextRequest) {
     let syncedCount = 0;
 
     // Process activities (save to recent folder)
-    for (const activity of activities) {
-      if (activity.map && activity.map.polyline) {
-        const points = decodePolyline(activity.map.polyline);
-        
-        if (points.length > 0) {
-          const gpxContent = convertToGPX(
+    for (const activity of activities.filter((activity) => activity?.map?.summary_polyline)) {
+      const points = decodePolyline(activity.map.summary_polyline);
+
+      if (points.length > 0) {
+        const gpxContent = convertToGPX(
             activity.name,
             points,
             activity.start_date_local
-          );
-          
-          const filename = `strava-activity-${activity.id}.gpx`;
-          const filepath = path.join(recentDir, filename);
-          
-          writeFileSync(filepath, gpxContent);
-          syncedCount++;
-        }
+        );
+
+        const filename = `strava-activity-${activity.id}.gpx`;
+        const filepath = path.join(recentDir, filename);
+        console.log(`wrote file at ${filepath}`);
+
+        writeFileSync(filepath, gpxContent);
+        syncedCount++;
       }
     }
 
     // Process routes (save to saved folder)
-    for (const route of routes) {
-      if (route.map && route.map.polyline) {
-        const points = decodePolyline(route.map.polyline);
-        
+    for (const route of routes.filter((route) => route?.map?.summary_polyline)) {
+        const points = decodePolyline(route.map.summary_polyline);
+
         if (points.length > 0) {
           const gpxContent = convertToGPX(
-            route.name,
-            points,
-            route.created_at
+              route.name,
+              points,
+              route.created_at
           );
-          
+
           const filename = `strava-route-${route.id}.gpx`;
           const filepath = path.join(savedDir, filename);
-          
+          console.log(`wrote file at ${filepath}`);
+
           writeFileSync(filepath, gpxContent);
           syncedCount++;
-        }
       }
     }
 
