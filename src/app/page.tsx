@@ -19,12 +19,35 @@ interface Route {
   error?: string;
 }
 
+interface GridData {
+  gridX: number;
+  gridY: number;
+  distance: number;
+}
+
+interface GridAnalysis {
+  gridConfig: {
+    gridSizeKm: number;
+    referencePoint: [number, number];
+  };
+  gridData: GridData[];
+  stats: {
+    totalGrids: number;
+    totalDistance: number;
+    averageDistance: number;
+    maxDistance: number;
+  };
+  routesProcessed: number;
+}
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [recentRoutes, setRecentRoutes] = useState<Route[]>([]);
   const [savedRoutes, setSavedRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [loadingGrid, setLoadingGrid] = useState(false);
+  const [gridSizeKm, setGridSizeKm] = useState(4); // Page decides grid size
 
   useEffect(() => {
     const fetchRoutes = async () => {
@@ -49,6 +72,64 @@ export default function Home() {
 
     fetchRoutes();
   }, []);
+
+  // Cache keys for browser storage
+  const getCacheKey = (folder: 'recent' | 'saved', gridSizeKm: number) => `grid-analysis-${folder}-${gridSizeKm}`;
+  
+  // Get cached analysis from sessionStorage
+  const getCachedAnalysis = (folder: 'recent' | 'saved', gridSizeKm: number): GridAnalysis | null => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const cached = sessionStorage.getItem(getCacheKey(folder, gridSizeKm));
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  };
+  
+  // Save analysis to sessionStorage
+  const setCachedAnalysis = (folder: 'recent' | 'saved', analysis: GridAnalysis) => {
+    if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.setItem(getCacheKey(folder, analysis.gridConfig.gridSizeKm), JSON.stringify(analysis));
+      // Force a re-render by updating a dummy state
+      setLoadingGrid(false);
+    } catch (error) {
+      console.error('Failed to cache analysis:', error);
+    }
+  };
+
+  const fetchGridAnalysis = async (folder: 'recent' | 'saved') => {
+    setLoadingGrid(true);
+    try {
+      // Check cache first
+      const cached = getCachedAnalysis(folder, gridSizeKm);
+      if (cached) {
+        console.log(`📊 Using cached grid analysis for ${folder}:`, cached);
+        setLoadingGrid(false);
+        return;
+      }
+      
+      // Fetch analysis for specific folder only
+      const includeRecent = folder === 'recent' ? 'true' : 'false';
+      const includeSaved = folder === 'saved' ? 'true' : 'false';
+      
+      const response = await fetch(`/api/grid-analysis?recent=${includeRecent}&saved=${includeSaved}&gridSize=${gridSizeKm}`);
+      if (response.ok) {
+        const analysis = await response.json();
+        setCachedAnalysis(folder, analysis);
+        console.log(`📊 Grid analysis fetched and cached for ${folder}:`, analysis);
+      }
+    } catch (error) {
+      console.error(`Error fetching grid analysis for ${folder}:`, error);
+    } finally {
+      setLoadingGrid(false);
+    }
+  };
+
+  // Get current grid analysis based on active tab
+  const currentGridAnalysis = getCachedAnalysis(activeTab, gridSizeKm);
+  const hasCurrentAnalysis = currentGridAnalysis !== null;
 
   return (
     <div className="h-screen flex">
@@ -82,6 +163,24 @@ export default function Home() {
 
         {/* Route List */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Grid Analysis Button */}
+          <div className="mb-4">
+            <button
+              onClick={() => fetchGridAnalysis(activeTab)}
+              disabled={loadingGrid}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {loadingGrid ? 'Loading Grid Analysis...' : `Analyze ${activeTab === 'recent' ? 'Recent' : 'Saved'} Routes`}
+            </button>
+            {hasCurrentAnalysis && currentGridAnalysis && (
+              <div className="mt-2 text-xs text-gray-600">
+                <p>📊 {currentGridAnalysis.routesProcessed} {activeTab} routes processed</p>
+                <p>🎯 {currentGridAnalysis.stats.totalGrids} grid squares with routes</p>
+                <p>📏 {(currentGridAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
+              </div>
+            )}
+          </div>
+          
           {loading ? (
             <div className="flex justify-center items-center h-32">
               <p className="text-gray-500">Loading routes...</p>
@@ -148,6 +247,7 @@ export default function Home() {
             : [52.3676, 4.9041]} 
           zoom={13}
           route={selectedRoute}
+          gridAnalysis={currentGridAnalysis}
         />
       </div>
     </div>

@@ -22,86 +22,94 @@ interface Route {
   points: { lat: number; lon: number; elevation?: number }[];
 }
 
+interface GridData {
+  gridX: number;
+  gridY: number;
+  distance: number;
+}
+
+interface GridAnalysis {
+  gridConfig: {
+    gridSizeKm: number;
+    referencePoint: [number, number];
+  };
+  gridData: GridData[];
+  stats: {
+    totalGrids: number;
+    totalDistance: number;
+    averageDistance: number;
+    maxDistance: number;
+  };
+}
+
 interface MapProps {
   center?: [number, number];
   zoom?: number;
   className?: string;
   route?: Route | null;
+  gridAnalysis?: GridAnalysis | null;
 }
 
-// Function to create 5km x 5km grid squares covering the entire map view
-function createGridSquares(mapBounds: L.LatLngBounds, gridSize: number = 5): L.LatLngBounds[] {
-  const squares: L.LatLngBounds[] = [];
+// Convert grid coordinates to lat/lng bounds
+function gridToLatLngBounds(gridX: number, gridY: number, gridConfig: { gridSizeKm: number, referencePoint: [number, number] }): L.LatLngBounds {
+  const [refLat, refLng] = gridConfig.referencePoint;
   
-  const south = mapBounds.getSouth();
-  const north = mapBounds.getNorth();
-  const west = mapBounds.getWest();
-  const east = mapBounds.getEast();
+  const kmToLatDegrees = gridConfig.gridSizeKm / 111;
+  const kmToLngDegrees = gridConfig.gridSizeKm / (111 * Math.cos(refLat * Math.PI / 180));
   
-  // Use center latitude for longitude calculations
-  const centerLat = (north + south) / 2;
-  const kmToLatDegrees = gridSize / 111; // 1 degree latitude ≈ 111km
-  const kmToLngDegrees = gridSize / (111 * Math.cos(centerLat * Math.PI / 180));
+  const west = refLng + (gridX * kmToLngDegrees);
+  const east = refLng + ((gridX + 1) * kmToLngDegrees);
+  const south = refLat + (gridY * kmToLatDegrees);
+  const north = refLat + ((gridY + 1) * kmToLatDegrees);
   
-  // Find the starting points (align to grid)
-  const startLat = Math.floor(south / kmToLatDegrees) * kmToLatDegrees;
-  const startLng = Math.floor(west / kmToLngDegrees) * kmToLngDegrees;
-  
-  // Create grid squares to cover the entire view
-  for (let lat = startLat; lat < north + kmToLatDegrees; lat += kmToLatDegrees) {
-    for (let lng = startLng; lng < east + kmToLngDegrees; lng += kmToLngDegrees) {
-      const southWest: [number, number] = [lat, lng];
-      const northEast: [number, number] = [lat + kmToLatDegrees, lng + kmToLngDegrees];
-      
-      squares.push(L.latLngBounds(southWest, northEast));
-    }
+  return L.latLngBounds([south, west], [north, east]);
+}
+
+// Get color based on distance density
+function getGridColor(distance: number, maxDistance: number): { color: string, fillColor: string, fillOpacity: number } {
+  if (distance === 0) {
+    return { color: 'blue', fillColor: 'blue', fillOpacity: 0.02 };
   }
   
-  return squares;
+  const intensity = distance / maxDistance;
+  
+  if (intensity > 0.8) {
+    return { color: '#d32f2f', fillColor: '#f44336', fillOpacity: 0.6 }; // Dark red
+  } else if (intensity > 0.6) {
+    return { color: '#f57c00', fillColor: '#ff9800', fillOpacity: 0.5 }; // Orange
+  } else if (intensity > 0.4) {
+    return { color: '#fbc02d', fillColor: '#ffeb3b', fillOpacity: 0.4 }; // Yellow
+  } else if (intensity > 0.2) {
+    return { color: '#689f38', fillColor: '#8bc34a', fillOpacity: 0.3 }; // Light green
+  } else {
+    return { color: '#388e3c', fillColor: '#4caf50', fillOpacity: 0.2 }; // Green
+  }
 }
 
-// Component to track map bounds and create grid
-function GridOverlay({ showGrid }: { showGrid: boolean }) {
-  const map = useMap();
-  const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
+// Component to show grid with route density visualization
+function GridDensityOverlay({ showGrid, gridAnalysis }: { showGrid: boolean, gridAnalysis: GridAnalysis | null }) {
+  if (!showGrid || !gridAnalysis) return null;
   
-  useEffect(() => {
-    const updateBounds = () => {
-      setMapBounds(map.getBounds());
-    };
-    
-    // Initial bounds
-    updateBounds();
-    
-    // Update bounds when map moves
-    map.on('moveend', updateBounds);
-    map.on('zoomend', updateBounds);
-    
-    return () => {
-      map.off('moveend', updateBounds);
-      map.off('zoomend', updateBounds);
-    };
-  }, [map]);
-  
-  if (!showGrid || !mapBounds) return null;
-  
-  const gridSquares = createGridSquares(mapBounds);
+  const { gridData, gridConfig, stats } = gridAnalysis;
   
   return (
     <>
-      {gridSquares.map((bounds, index) => (
-        <Rectangle
-          key={index}
-          bounds={bounds}
-          pathOptions={{
-            color: 'blue',
-            weight: 1,
-            opacity: 0.4,
-            fillOpacity: 0.02,
-            fillColor: 'blue'
-          }}
-        />
-      ))}
+      {gridData.map((grid, index) => {
+        const bounds = gridToLatLngBounds(grid.gridX, grid.gridY, gridConfig);
+        const colorStyle = getGridColor(grid.distance, stats.maxDistance);
+        
+        return (
+          <Rectangle
+            key={`density-${grid.gridX}-${grid.gridY}`}
+            bounds={bounds}
+            pathOptions={{
+              ...colorStyle,
+              weight: 1,
+              opacity: 0.8
+            }}
+          />
+        );
+      })}
     </>
   );
 }
@@ -126,19 +134,22 @@ export default function Map({
   center = [52.3676, 4.9041], // Default to Amsterdam
   zoom = 13,
   className = "h-full w-full",
-  route
-}: MapProps) {
+  route,
+  gridAnalysis
+                            }: MapProps) {
   const [showGrid, setShowGrid] = useState(true);
   
   return (
     <div className="relative h-full w-full">
-      {/* Grid toggle button */}
-      <button
-        onClick={() => setShowGrid(!showGrid)}
-        className="absolute top-4 right-4 z-[1000] bg-white px-3 py-1 rounded shadow-md text-sm font-medium hover:bg-gray-50 border"
-      >
-        {showGrid ? 'Hide Grid' : 'Show Grid'}
-      </button>
+      {/* Single grid toggle button */}
+      <div className="absolute top-4 right-4 z-[1000]">
+        <button
+          onClick={() => setShowGrid(!showGrid)}
+          className="bg-white px-3 py-1 rounded shadow-md text-sm font-medium hover:bg-gray-50 border"
+        >
+          {showGrid ? 'Hide Grid' : 'Show Grid'}
+        </button>
+      </div>
       
       <MapContainer
         center={center}
@@ -151,8 +162,8 @@ export default function Map({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* Dynamic grid overlay */}
-        <GridOverlay showGrid={showGrid} />
+        {/* Always show density grid if analysis is available */}
+        {gridAnalysis && <GridDensityOverlay showGrid={showGrid} gridAnalysis={gridAnalysis} />}
         
         {/* Route polyline */}
         {route && route.points.length > 0 && (
