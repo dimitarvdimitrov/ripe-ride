@@ -72,8 +72,14 @@ export default function Home() {
   const currentHeatmapAnalysis = heatmapMode === 'per-route' ? selectedRoute?.routeHeatmap : heatmapAnalysis;
   const hasCurrentAnalysis = currentHeatmapAnalysis !== undefined;
 
-  // Calculate min/max overlap scores for dynamic coloring
-  const routesWithScores = savedRoutes.filter(route => route.overlapScore !== undefined);
+  // Separate routes by error status
+  const validRecentRoutes = recentRoutes.filter(route => !route.error);
+  const errorRecentRoutes = recentRoutes.filter(route => route.error);
+  const validSavedRoutes = savedRoutes.filter(route => !route.error);
+  const errorSavedRoutes = savedRoutes.filter(route => route.error);
+
+  // Calculate min/max overlap scores for dynamic coloring (only for valid routes)
+  const routesWithScores = validSavedRoutes.filter(route => route.overlapScore !== undefined);
   const overlapScores = routesWithScores.map(route => route.overlapScore!);
   const minOverlapScore = overlapScores.length > 0 ? Math.min(...overlapScores) : 0;
   const maxOverlapScore = overlapScores.length > 0 ? Math.max(...overlapScores) : 1;
@@ -93,6 +99,71 @@ export default function Home() {
       return { color: 'bg-red-500', icon: '○' }; // Least diverse (highest overlap)
     }
   };
+
+  // Component for error routes (minimal display)
+  const ErrorRouteCard = ({ route }: { route: Route }) => (
+    <div className="bg-red-50 p-4 rounded-lg shadow-sm border border-red-200 cursor-pointer hover:shadow-md transition-shadow">
+      <h3 className="font-medium text-gray-900">{route.name}</h3>
+      <p className="text-sm text-gray-600">Parse Error</p>
+      <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
+    </div>
+  );
+
+  // Component for valid recent routes
+  const ValidRecentRouteCard = ({ route, isSelected, onSelect }: { 
+    route: Route; 
+    isSelected: boolean; 
+    onSelect: () => void; 
+  }) => (
+    <div 
+      className={`bg-white p-4 rounded-lg shadow-sm border cursor-pointer hover:shadow-md transition-shadow border-gray-200 ${
+        isSelected ? 'ring-2 ring-blue-500' : ''
+      }`}
+      onClick={onSelect}
+    >
+      <h3 className="font-medium text-gray-900">{route.name}</h3>
+      <p className="text-sm text-gray-600">
+        {route.distance ? `${(route.distance / 1000).toFixed(1)} km` : 'Unknown distance'}
+      </p>
+      <p className="text-sm text-gray-500">Last done: {route.lastDone}</p>
+    </div>
+  );
+
+  // Component for valid saved routes (includes overlap score)
+  const ValidSavedRouteCard = ({ route, isSelected, onSelect }: { 
+    route: Route; 
+    isSelected: boolean; 
+    onSelect: () => void; 
+  }) => (
+    <div 
+      className={`bg-white p-4 rounded-lg shadow-sm border cursor-pointer hover:shadow-md transition-shadow border-gray-200 ${
+        isSelected ? 'ring-2 ring-blue-500' : ''
+      }`}
+      onClick={onSelect}
+    >
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <h3 className="font-medium text-gray-900">{route.name}</h3>
+          <p className="text-sm text-gray-600">
+            {route.distance ? `${(route.distance / 1000).toFixed(1)} km` : 'Unknown distance'}
+          </p>
+          <p className="text-sm text-gray-500">
+            Elevation: {route.elevation ? `${Math.round(route.elevation)}m` : 'Unknown elevation'}
+          </p>
+        </div>
+        {route.overlapScore !== undefined && (
+          <div className="ml-2 flex flex-col items-center">
+            <div className="text-xs text-gray-500 mb-1">Diversity</div>
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+              getOverlapScoreStyle(route.overlapScore).color
+            }`}>
+              {getOverlapScoreStyle(route.overlapScore).icon}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-screen flex">
@@ -224,73 +295,49 @@ export default function Home() {
             </div>
           ) : (
             <div className="space-y-4">
-              {activeTab === 'recent' && recentRoutes.map((route) => (
-                <div 
-                  key={route.id} 
-                  className={`bg-white p-4 rounded-lg shadow-sm border cursor-pointer hover:shadow-md transition-shadow ${
-                    route.error 
-                      ? 'border-red-200 bg-red-50' 
-                      : 'border-gray-200'
-                  } ${
-                    selectedRoute?.id === route.id ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  onClick={() => {
-                    console.log(`📍 Selected route: ${route.name} (${route.points.length} points)`);
-                    setSelectedRoute(route);
-                  }}
-                >
-                  <h3 className="font-medium text-gray-900">{route.name}</h3>
-                  <p className="text-sm text-gray-600">
-                    {route.error ? 'Parse Error' : route.distance ? `${(route.distance / 1000).toFixed(1)} km` : 'Unknown distance'}
-                  </p>
-                  <p className="text-sm text-gray-500">Last done: {route.lastDone}</p>
-                  {route.error && (
-                    <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
-                  )}
-                </div>
-              ))}
+              {activeTab === 'recent' && (
+                <>
+                  {/* Valid recent routes */}
+                  {validRecentRoutes.map((route) => (
+                    <ValidRecentRouteCard
+                      key={route.id}
+                      route={route}
+                      isSelected={selectedRoute?.id === route.id}
+                      onSelect={() => {
+                        console.log(`📍 Selected route: ${route.name} (${route.points.length} points)`);
+                        setSelectedRoute(route);
+                      }}
+                    />
+                  ))}
+                  
+                  {/* Error recent routes */}
+                  {errorRecentRoutes.map((route) => (
+                    <ErrorRouteCard key={route.id} route={route} />
+                  ))}
+                </>
+              )}
               
-              {activeTab === 'saved' && savedRoutes.map((route) => (
-                <div 
-                  key={route.id} 
-                  className={`bg-white p-4 rounded-lg shadow-sm border cursor-pointer hover:shadow-md transition-shadow ${
-                    route.error 
-                      ? 'border-red-200 bg-red-50' 
-                      : 'border-gray-200'
-                  } ${
-                    selectedRoute?.id === route.id ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  onClick={() => {
-                    console.log(`📍 Selected route: ${route.name} (${route.points.length} points)`);
-                    setSelectedRoute(route);
-                  }}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{route.name}</h3>
-                      <p className="text-sm text-gray-600">
-                        {route.error ? 'Parse Error' : route.distance ? `${(route.distance / 1000).toFixed(1)} km` : 'Unknown distance'}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Elevation: {route.error ? 'Parse Error' : route.elevation ? `${Math.round(route.elevation)}m` : 'Unknown elevation'}
-                      </p>
-                      {route.error && (
-                        <p className="text-sm text-red-600 mt-2">⚠️ {route.error}</p>
-                      )}
-                    </div>
-                    {route.overlapScore !== undefined && (
-                      <div className="ml-2 flex flex-col items-center">
-                        <div className="text-xs text-gray-500 mb-1">Diversity</div>
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                          getOverlapScoreStyle(route.overlapScore).color
-                        }`}>
-                          {getOverlapScoreStyle(route.overlapScore).icon}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {activeTab === 'saved' && (
+                <>
+                  {/* Valid saved routes */}
+                  {validSavedRoutes.map((route) => (
+                    <ValidSavedRouteCard
+                      key={route.id}
+                      route={route}
+                      isSelected={selectedRoute?.id === route.id}
+                      onSelect={() => {
+                        console.log(`📍 Selected route: ${route.name} (${route.points.length} points)`);
+                        setSelectedRoute(route);
+                      }}
+                    />
+                  ))}
+                  
+                  {/* Error saved routes */}
+                  {errorSavedRoutes.map((route) => (
+                    <ErrorRouteCard key={route.id} route={route} />
+                  ))}
+                </>
+              )}
             </div>
           )}
         </div>
