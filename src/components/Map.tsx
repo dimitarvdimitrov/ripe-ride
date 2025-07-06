@@ -7,6 +7,7 @@ import L from 'leaflet';
 import { type HeatmapCell } from '@/lib/heatmapTracker';
 import { createHeatmapConfig } from '@/lib/heatmapConfig';
 import { type Route } from '@/hooks/useRoutes';
+import { type HeatmapAnalysis } from '@/hooks/useHeatmapAnalysis';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -17,15 +18,6 @@ L.Icon.Default.mergeOptions({
 });
 
 
-interface HeatmapAnalysis {
-  heatmapData: HeatmapCell[];
-  stats: {
-    totalCells: number;
-    totalDistance: number;
-    averageDistance: number;
-    maxDistance: number;
-  };
-}
 
 interface MapProps {
   center?: [number, number];
