@@ -10,14 +10,17 @@ export async function GET(request: NextRequest) {
     const includeRecent = searchParams.get('recent') !== 'false';
     const includeSaved = searchParams.get('saved') !== 'false';
     
-    // Grid size is required
+    // Grid size is required and must be at least 0.5km
     const gridSizeParam = searchParams.get('gridSize');
     if (!gridSizeParam) {
       return NextResponse.json({ error: 'gridSize parameter is required' }, { status: 400 });
     }
     const gridSizeKm = parseFloat(gridSizeParam);
-    if (isNaN(gridSizeKm) || gridSizeKm <= 0) {
-      return NextResponse.json({ error: 'gridSize must be a positive number' }, { status: 400 });
+    if (isNaN(gridSizeKm) || gridSizeKm < 0.5) {
+      return NextResponse.json({ error: 'gridSize must be at least 0.5 kilometers' }, { status: 400 });
+    }
+    if (gridSizeKm > 50) {
+      return NextResponse.json({ error: 'gridSize cannot exceed 50 kilometers' }, { status: 400 });
     }
     
     const refLat = parseFloat(searchParams.get('refLat') || DEFAULT_REFERENCE_POINT[0].toString());

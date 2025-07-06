@@ -1,7 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
+import { useGridAnalysis } from '@/hooks/useGridAnalysis';
+
+// Simple debounce hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 // Dynamic import to avoid SSR issues with Leaflet
 const Map = dynamic(() => import('@/components/Map'), {
@@ -19,35 +37,31 @@ interface Route {
   error?: string;
 }
 
-interface GridData {
-  gridX: number;
-  gridY: number;
-  distance: number;
-}
-
-interface GridAnalysis {
-  gridConfig: {
-    gridSizeKm: number;
-    referencePoint: [number, number];
-  };
-  gridData: GridData[];
-  stats: {
-    totalGrids: number;
-    totalDistance: number;
-    averageDistance: number;
-    maxDistance: number;
-  };
-  routesProcessed: number;
-}
-
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [recentRoutes, setRecentRoutes] = useState<Route[]>([]);
   const [savedRoutes, setSavedRoutes] = useState<Route[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-  const [loadingGrid, setLoadingGrid] = useState(false);
-  const [gridSizeKm, setGridSizeKm] = useState(4); // Page decides grid size
+  const [gridSizeKm, setGridSizeKm] = useState(5); // Page decides grid size
+  
+  // Filter states
+  const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]); // km
+  const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]); // meters
+
+  // Debounce grid size to prevent excessive requests
+  const debouncedGridSize = useDebounce(gridSizeKm, 300);
+  
+  // Use React Query for grid analysis
+  const {
+    data: gridAnalysis,
+    isLoading: loadingGrid,
+    error: gridError
+  } = useGridAnalysis(
+    activeTab,
+    debouncedGridSize,
+    !loading && (recentRoutes.length > 0 || savedRoutes.length > 0) // Only enable when routes are loaded
+  );
 
   useEffect(() => {
     const fetchRoutes = async () => {
@@ -73,63 +87,7 @@ export default function Home() {
     fetchRoutes();
   }, []);
 
-  // Cache keys for browser storage
-  const getCacheKey = (folder: 'recent' | 'saved', gridSizeKm: number) => `grid-analysis-${folder}-${gridSizeKm}`;
-  
-  // Get cached analysis from sessionStorage
-  const getCachedAnalysis = (folder: 'recent' | 'saved', gridSizeKm: number): GridAnalysis | null => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const cached = sessionStorage.getItem(getCacheKey(folder, gridSizeKm));
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
-    }
-  };
-  
-  // Save analysis to sessionStorage
-  const setCachedAnalysis = (folder: 'recent' | 'saved', analysis: GridAnalysis) => {
-    if (typeof window === 'undefined') return;
-    try {
-      sessionStorage.setItem(getCacheKey(folder, analysis.gridConfig.gridSizeKm), JSON.stringify(analysis));
-      // Force a re-render by updating a dummy state
-      setLoadingGrid(false);
-    } catch (error) {
-      console.error('Failed to cache analysis:', error);
-    }
-  };
-
-  const fetchGridAnalysis = async (folder: 'recent' | 'saved') => {
-    setLoadingGrid(true);
-    try {
-      // Check cache first
-      const cached = getCachedAnalysis(folder, gridSizeKm);
-      if (cached) {
-        console.log(`📊 Using cached grid analysis for ${folder}:`, cached);
-        setLoadingGrid(false);
-        return;
-      }
-      
-      // Fetch analysis for specific folder only
-      const includeRecent = folder === 'recent' ? 'true' : 'false';
-      const includeSaved = folder === 'saved' ? 'true' : 'false';
-      
-      const response = await fetch(`/api/grid-analysis?recent=${includeRecent}&saved=${includeSaved}&gridSize=${gridSizeKm}`);
-      if (response.ok) {
-        const analysis = await response.json();
-        setCachedAnalysis(folder, analysis);
-        console.log(`📊 Grid analysis fetched and cached for ${folder}:`, analysis);
-      }
-    } catch (error) {
-      console.error(`Error fetching grid analysis for ${folder}:`, error);
-    } finally {
-      setLoadingGrid(false);
-    }
-  };
-
-  // Get current grid analysis based on active tab
-  const currentGridAnalysis = getCachedAnalysis(activeTab, gridSizeKm);
-  const hasCurrentAnalysis = currentGridAnalysis !== null;
+  const hasCurrentAnalysis = gridAnalysis !== undefined;
 
   return (
     <div className="h-screen flex">
@@ -161,25 +119,93 @@ export default function Home() {
           </nav>
         </div>
 
+        {/* Filter Controls */}
+        <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+          <div className="space-y-4">
+            {/* Distance Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Distance: {distanceRange[0]}km - {distanceRange[1]}km
+              </label>
+              <div className="relative">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={distanceRange[0]}
+                  onChange={(e) => setDistanceRange([Number(e.target.value), distanceRange[1]])}
+                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={distanceRange[1]}
+                  onChange={(e) => setDistanceRange([distanceRange[0], Number(e.target.value)])}
+                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-blue"
+                />
+              </div>
+            </div>
+
+            {/* Elevation Filter */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Elevation: {elevationRange[0]}m - {elevationRange[1]}m
+              </label>
+              <div className="relative">
+                <input
+                  type="range"
+                  min="0"
+                  max="2000"
+                  step="50"
+                  value={elevationRange[0]}
+                  onChange={(e) => setElevationRange([Number(e.target.value), elevationRange[1]])}
+                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-green"
+                />
+                <input
+                  type="range"
+                  min="0"
+                  max="2000"
+                  step="50"
+                  value={elevationRange[1]}
+                  onChange={(e) => setElevationRange([elevationRange[0], Number(e.target.value)])}
+                  className="absolute w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-green"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Route List */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Grid Analysis Button */}
-          <div className="mb-4">
-            <button
-              onClick={() => fetchGridAnalysis(activeTab)}
-              disabled={loadingGrid}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
-            >
-              {loadingGrid ? 'Loading Grid Analysis...' : `Analyze ${activeTab === 'recent' ? 'Recent' : 'Saved'} Routes`}
-            </button>
-            {hasCurrentAnalysis && currentGridAnalysis && (
-              <div className="mt-2 text-xs text-gray-600">
-                <p>📊 {currentGridAnalysis.routesProcessed} {activeTab} routes processed</p>
-                <p>🎯 {currentGridAnalysis.stats.totalGrids} grid squares with routes</p>
-                <p>📏 {(currentGridAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
+          {/* Grid Analysis Status */}
+          {hasCurrentAnalysis && gridAnalysis && (
+            <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-3">
+              <div className="text-xs text-blue-800">
+                <p>📊 {gridAnalysis.routesProcessed} {activeTab} routes analyzed</p>
+                <p>🎯 {gridAnalysis.stats.totalGrids} grid squares with routes</p>
+                <p>📏 {(gridAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+          
+          {loadingGrid && (
+            <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+              <div className="text-xs text-yellow-800">
+                <p>⏳ Analyzing grid density...</p>
+              </div>
+            </div>
+          )}
+          
+          {gridError && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
+              <div className="text-xs text-red-800">
+                <p>❌ Failed to analyze grid: {gridError.message}</p>
+              </div>
+            </div>
+          )}
           
           {loading ? (
             <div className="flex justify-center items-center h-32">
@@ -247,7 +273,9 @@ export default function Home() {
             : [52.3676, 4.9041]} 
           zoom={13}
           route={selectedRoute}
-          gridAnalysis={currentGridAnalysis}
+          gridAnalysis={gridAnalysis}
+          gridSizeKm={gridSizeKm}
+          onGridSizeChange={setGridSizeKm}
         />
       </div>
     </div>

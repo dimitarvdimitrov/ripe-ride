@@ -48,6 +48,8 @@ interface MapProps {
   className?: string;
   route?: Route | null;
   gridAnalysis?: GridAnalysis | null;
+  gridSizeKm: number;
+  onGridSizeChange: (size: number) => void;
 }
 
 // Convert grid coordinates to lat/lng bounds
@@ -147,20 +149,42 @@ export default function Map({
   zoom = 13,
   className = "h-full w-full",
   route,
-  gridAnalysis
-                            }: MapProps) {
+  gridAnalysis,
+  gridSizeKm,
+  onGridSizeChange
+}: MapProps) {
   const [showGrid, setShowGrid] = useState(true);
   
   return (
     <div className="relative h-full w-full">
-      {/* Single grid toggle button */}
-      <div className="absolute top-4 right-4 z-[1000]">
+      {/* Grid controls */}
+      <div className="absolute top-4 right-4 z-[1000] bg-white rounded-lg shadow-md border p-3 space-y-3">
         <button
           onClick={() => setShowGrid(!showGrid)}
-          className="bg-white px-3 py-1 rounded shadow-md text-sm font-medium hover:bg-gray-50 border"
+          className="w-full px-3 py-1 rounded text-sm font-medium hover:bg-gray-50 border"
         >
           {showGrid ? 'Hide Grid' : 'Show Grid'}
         </button>
+        
+        {/* Grid Size Control */}
+        <div className="min-w-[200px]">
+          <label className="block text-xs font-medium text-gray-700 mb-1">
+            Grid Size: {gridSizeKm}km
+          </label>
+          <input
+            type="range"
+            min="0.5"
+            max="20"
+            step="0.5"
+            value={gridSizeKm}
+            onChange={(e) => onGridSizeChange(Number(e.target.value))}
+            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb-purple"
+          />
+          <div className="flex justify-between text-xs text-gray-500 mt-0.5">
+            <span>0.5km</span>
+            <span>20km</span>
+          </div>
+        </div>
       </div>
       
       <MapContainer
