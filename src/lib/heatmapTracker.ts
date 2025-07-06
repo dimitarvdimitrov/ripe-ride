@@ -1,3 +1,9 @@
+export interface HeatmapCell {
+  cellX: number;
+  cellY: number;
+  distance: number;
+}
+
 export interface HeatmapTracker {
   /**
    * Add distance to the heatmap cell at the given coordinates
@@ -17,9 +23,9 @@ export interface HeatmapTracker {
 
   /**
    * Get all heatmap cells with their distances
-   * @returns Array of {cellX, cellY, distance}
+   * @returns Array of HeatmapCell objects
    */
-  getAllCells(): {cellX: number, cellY: number, distance: number}[];
+  getAllCells(): HeatmapCell[];
 
   /**
    * Reset all heatmap data
@@ -84,8 +90,8 @@ export class ArrayHeatmapTracker implements HeatmapTracker {
     return this.heatmap.get(key) || 0;
   }
 
-  getAllCells(): {cellX: number, cellY: number, distance: number}[] {
-    const result: {cellX: number, cellY: number, distance: number}[] = [];
+  getAllCells(): HeatmapCell[] {
+    const result: HeatmapCell[] = [];
     
     this.heatmap.forEach((distance, key) => {
       const [cellX, cellY] = key.split(',').map(Number);

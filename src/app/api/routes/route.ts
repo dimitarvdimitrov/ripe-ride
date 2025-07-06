@@ -1,5 +1,5 @@
 import {NextRequest, NextResponse} from 'next/server';
-import {ArrayHeatmapTracker} from '@/lib/heatmapTracker';
+import {ArrayHeatmapTracker, type HeatmapCell} from '@/lib/heatmapTracker';
 import {DEFAULT_REFERENCE_POINT, type HeatmapConfig} from '@/lib/heatmapConfig';
 import {FileSystemRouteLoader, type LoadedRoute} from '@/lib/routeLoader';
 import {processRoute} from '@/lib/routeProcessor';
@@ -131,7 +131,7 @@ function getRandomRecentDate(): string {
 function generateSingleRouteHeatmap(
     route: LoadedRoute,
     heatmapConfig: HeatmapConfig
-): { cellX: number, cellY: number, distance: number }[] {
+): HeatmapCell[] {
     const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
     // Process the route using the route processor
@@ -141,11 +141,7 @@ function generateSingleRouteHeatmap(
 }
 
 // Load and generate heatmap for all recent routes
-async function generateRecentRoutesHeatmap(heatmapSizeKm: number): Promise<{
-    cellX: number,
-    cellY: number,
-    distance: number
-}[]> {
+async function generateRecentRoutesHeatmap(heatmapSizeKm: number): Promise<HeatmapCell[]> {
     try {
         const heatmapConfig: HeatmapConfig = {
             heatmapSizeKm,
@@ -174,8 +170,8 @@ async function generateRecentRoutesHeatmap(heatmapSizeKm: number): Promise<{
 
 // Calculate actual overlap score by comparing single route vs all recent routes heatmap
 function calculateActualOverlapScore(
-    singleRouteHeatmap: { cellX: number, cellY: number, distance: number }[],
-    allRoutesHeatmap: { cellX: number, cellY: number, distance: number }[]
+    singleRouteHeatmap: HeatmapCell[],
+    allRoutesHeatmap: HeatmapCell[]
 ): number {
     if (singleRouteHeatmap.length === 0) {
         return 1.0; // Maximum overlap if route has no coverage
@@ -218,9 +214,8 @@ function calculateActualOverlapScore(
 async function calculateOverlapScore(
     route: LoadedRoute,
     heatmapSizeKm: number,
-    // TODO replace all instances of { cellX: number, cellY: number, distance: number } with a proper type - HeatmapTracker and then replace the hardocded array throughout the app with that type
-    allRoutesHeatmap: { cellX: number, cellY: number, distance: number }[]
-): Promise<{ score: number; routeHeatmap: { cellX: number, cellY: number, distance: number }[] }> {
+    allRoutesHeatmap: HeatmapCell[]
+): Promise<{ score: number; routeHeatmap: HeatmapCell[] }> {
     const heatmapConfig: HeatmapConfig = {
         heatmapSizeKm,
         referencePoint: DEFAULT_REFERENCE_POINT

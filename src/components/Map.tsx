@@ -4,6 +4,7 @@ import { MapContainer, TileLayer, Polyline, useMap, Rectangle } from 'react-leaf
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
 import L from 'leaflet';
+import { type HeatmapCell } from '@/lib/heatmapTracker';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -25,18 +26,12 @@ interface Route {
   routeHeatmap?: HeatmapAnalysis;
 }
 
-interface HeatmapData {
-  cellX: number;
-  cellY: number;
-  distance: number;
-}
-
 interface HeatmapAnalysis {
   heatmapConfig: {
     heatmapSizeKm: number;
     referencePoint: [number, number];
   };
-  heatmapData: HeatmapData[];
+  heatmapData: HeatmapCell[];
   stats: {
     totalCells: number;
     totalDistance: number;

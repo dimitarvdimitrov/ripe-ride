@@ -1,17 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-
-export interface HeatmapData {
-  cellX: number;
-  cellY: number;
-  distance: number;
-}
+import { type HeatmapCell } from '@/lib/heatmapTracker';
 
 export interface HeatmapAnalysis {
   heatmapConfig: {
     heatmapSizeKm: number;
     referencePoint: [number, number];
   };
-  heatmapData: HeatmapData[];
+  heatmapData: HeatmapCell[];
   stats: {
     totalCells: number;
     totalDistance: number;
