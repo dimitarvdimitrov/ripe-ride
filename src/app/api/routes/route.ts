@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const folder = searchParams.get('folder');
     
     // Get filter parameters for scoring
-    const gridSizeKm = parseFloat(searchParams.get('gridSize') || '5');
+    const heatmapSizeKm = parseFloat(searchParams.get('heatmapSize') || '5');
     const distanceMin = parseFloat(searchParams.get('distanceMin') || '0');
     const distanceMax = parseFloat(searchParams.get('distanceMax') || '200');
     const elevationMin = parseFloat(searchParams.get('elevationMin') || '0');

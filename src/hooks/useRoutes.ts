@@ -13,7 +13,7 @@ export interface Route {
 
 async function fetchRoutes(
   folder: 'recent' | 'saved',
-  gridSizeKm: number,
+  heatmapSizeKm: number,
   distanceMin: number,
   distanceMax: number,
   elevationMin: number,
@@ -22,7 +22,7 @@ async function fetchRoutes(
 ): Promise<Route[]> {
   const params = new URLSearchParams({
     folder,
-    gridSize: gridSizeKm.toString(),
+    heatmapSize: heatmapSizeKm.toString(),
     distanceMin: distanceMin.toString(),
     distanceMax: distanceMax.toString(),
     elevationMin: elevationMin.toString(),
@@ -40,7 +40,7 @@ async function fetchRoutes(
 
 export function useRoutes(
   folder: 'recent' | 'saved',
-  gridSizeKm: number,
+  heatmapSizeKm: number,
   distanceMin: number,
   distanceMax: number,
   elevationMin: number,
@@ -48,8 +48,8 @@ export function useRoutes(
   enabled: boolean = true
 ) {
   return useQuery({
-    queryKey: ['routes', folder, gridSizeKm, distanceMin, distanceMax, elevationMin, elevationMax],
-    queryFn: ({ signal }) => fetchRoutes(folder, gridSizeKm, distanceMin, distanceMax, elevationMin, elevationMax, signal),
+    queryKey: ['routes', folder, heatmapSizeKm, distanceMin, distanceMax, elevationMin, elevationMax],
+    queryFn: ({ signal }) => fetchRoutes(folder, heatmapSizeKm, distanceMin, distanceMax, elevationMin, elevationMax, signal),
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes

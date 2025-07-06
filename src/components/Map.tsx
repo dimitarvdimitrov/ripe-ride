@@ -22,20 +22,20 @@ interface Route {
   points: { lat: number; lon: number; elevation?: number }[];
 }
 
-interface GridData {
-  gridX: number;
-  gridY: number;
+interface HeatmapData {
+  cellX: number;
+  cellY: number;
   distance: number;
 }
 
-interface GridAnalysis {
-  gridConfig: {
-    gridSizeKm: number;
+interface HeatmapAnalysis {
+  heatmapConfig: {
+    heatmapSizeKm: number;
     referencePoint: [number, number];
   };
-  gridData: GridData[];
+  heatmapData: HeatmapData[];
   stats: {
-    totalGrids: number;
+    totalCells: number;
     totalDistance: number;
     averageDistance: number;
     maxDistance: number;
@@ -47,28 +47,28 @@ interface MapProps {
   zoom?: number;
   className?: string;
   route?: Route | null;
-  gridAnalysis?: GridAnalysis | null;
-  gridSizeKm: number;
-  onGridSizeChange: (size: number) => void;
+  heatmapAnalysis?: HeatmapAnalysis | null;
+  heatmapSizeKm: number;
+  onHeatmapSizeChange: (size: number) => void;
 }
 
-// Convert grid coordinates to lat/lng bounds
-function gridToLatLngBounds(gridX: number, gridY: number, gridConfig: { gridSizeKm: number, referencePoint: [number, number] }): L.LatLngBounds {
-  const [refLat, refLng] = gridConfig.referencePoint;
+// Convert heatmap coordinates to lat/lng bounds
+function cellToLatLngBounds(cellX: number, cellY: number, heatmapConfig: { heatmapSizeKm: number, referencePoint: [number, number] }): L.LatLngBounds {
+  const [refLat, refLng] = heatmapConfig.referencePoint;
   
-  const kmToLatDegrees = gridConfig.gridSizeKm / 111;
-  const kmToLngDegrees = gridConfig.gridSizeKm / (111 * Math.cos(refLat * Math.PI / 180));
+  const kmToLatDegrees = heatmapConfig.heatmapSizeKm / 111;
+  const kmToLngDegrees = heatmapConfig.heatmapSizeKm / (111 * Math.cos(refLat * Math.PI / 180));
   
-  const west = refLng + (gridX * kmToLngDegrees);
-  const east = refLng + ((gridX + 1) * kmToLngDegrees);
-  const south = refLat + (gridY * kmToLatDegrees);
-  const north = refLat + ((gridY + 1) * kmToLatDegrees);
+  const west = refLng + (cellX * kmToLngDegrees);
+  const east = refLng + ((cellX + 1) * kmToLngDegrees);
+  const south = refLat + (cellY * kmToLatDegrees);
+  const north = refLat + ((cellY + 1) * kmToLatDegrees);
   
   return L.latLngBounds([south, west], [north, east]);
 }
 
 // Get color based on distance density
-function getGridColor(distance: number, maxDistance: number): { color: string, fillColor: string, fillOpacity: number } {
+function getHeatmapColor(distance: number, maxDistance: number): { color: string, fillColor: string, fillOpacity: number } {
   if (distance === 0) {
     return { color: 'blue', fillColor: 'blue', fillOpacity: 0.02 };
   }
@@ -88,21 +88,21 @@ function getGridColor(distance: number, maxDistance: number): { color: string, f
   }
 }
 
-// Component to show grid with route density visualization
-function GridDensityOverlay({ showGrid, gridAnalysis }: { showGrid: boolean, gridAnalysis: GridAnalysis | null }) {
-  if (!showGrid || !gridAnalysis) return null;
+// Component to show heatmap with route density visualization
+function HeatmapDensityOverlay({ showHeatmap, heatmapAnalysis }: { showHeatmap: boolean, heatmapAnalysis: HeatmapAnalysis | null }) {
+  if (!showHeatmap || !heatmapAnalysis) return null;
   
-  const { gridData, gridConfig, stats } = gridAnalysis;
+  const { heatmapData, heatmapConfig, stats } = heatmapAnalysis;
   
   return (
     <>
-      {gridData.map((grid, index) => {
-        const bounds = gridToLatLngBounds(grid.gridX, grid.gridY, gridConfig);
-        const colorStyle = getGridColor(grid.distance, stats.maxDistance);
+      {heatmapData.map((cell, index) => {
+        const bounds = cellToLatLngBounds(cell.cellX, cell.cellY, heatmapConfig);
+        const colorStyle = getHeatmapColor(cell.distance, stats.maxDistance);
         
         return (
           <Rectangle
-            key={`density-${grid.gridX}-${grid.gridY}`}
+            key={`density-${cell.cellX}-${cell.cellY}`}
             bounds={bounds}
             pathOptions={{
               ...colorStyle,
@@ -116,22 +116,22 @@ function GridDensityOverlay({ showGrid, gridAnalysis }: { showGrid: boolean, gri
   );
 }
 
-// Component to fit map bounds to grid analysis area
-function FitBounds({ gridAnalysis }: { gridAnalysis: GridAnalysis | null }) {
+// Component to fit map bounds to heatmap analysis area
+function FitBounds({ heatmapAnalysis }: { heatmapAnalysis: HeatmapAnalysis | null }) {
   const map = useMap();
   
   useEffect(() => {
-    if (gridAnalysis && gridAnalysis.gridData.length > 0) {
-      // Find the bounds of all grid squares
+    if (heatmapAnalysis && heatmapAnalysis.heatmapData.length > 0) {
+      // Find the bounds of all heatmap cells
       const allBounds: L.LatLngBounds[] = [];
       
-      gridAnalysis.gridData.forEach(grid => {
-        const bounds = gridToLatLngBounds(grid.gridX, grid.gridY, gridAnalysis.gridConfig);
+      heatmapAnalysis.heatmapData.forEach(cell => {
+        const bounds = cellToLatLngBounds(cell.cellX, cell.cellY, heatmapAnalysis.heatmapConfig);
         allBounds.push(bounds);
       });
       
       if (allBounds.length > 0) {
-        // Create a bounds that encompasses all grid squares
+        // Create a bounds that encompasses all heatmap cells
         const combinedBounds = allBounds.reduce((acc, bounds) => {
           return acc.extend(bounds);
         }, allBounds[0]);
@@ -139,7 +139,7 @@ function FitBounds({ gridAnalysis }: { gridAnalysis: GridAnalysis | null }) {
         map.fitBounds(combinedBounds, { padding: [50, 50] });
       }
     }
-  }, [gridAnalysis, map]);
+  }, [heatmapAnalysis, map]);
   
   return null;
 }
@@ -149,27 +149,27 @@ export default function Map({
   zoom = 13,
   className = "h-full w-full",
   route,
-  gridAnalysis,
-  gridSizeKm,
-  onGridSizeChange
+  heatmapAnalysis,
+  heatmapSizeKm,
+  onHeatmapSizeChange
 }: MapProps) {
-  const [showGrid, setShowGrid] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(true);
   
   return (
     <div className="relative h-full w-full">
-      {/* Grid controls */}
+      {/* Heatmap controls */}
       <div className="absolute top-4 right-4 z-[1000] bg-white rounded-lg shadow-md border p-3 space-y-3">
         <button
-          onClick={() => setShowGrid(!showGrid)}
+          onClick={() => setShowHeatmap(!showHeatmap)}
           className="w-full px-3 py-1 rounded text-sm font-medium hover:bg-gray-50 border"
         >
-          {showGrid ? 'Hide Grid' : 'Show Grid'}
+          {showHeatmap ? 'Hide Heatmap' : 'Show Heatmap'}
         </button>
         
-        {/* Grid Size Control */}
+        {/* Heatmap Size Control */}
         <div className="min-w-[200px]">
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Grid Size: {gridSizeKm}km
+            Heatmap Size: {heatmapSizeKm}km
           </label>
           <div className="single-range-container">
             <input
@@ -177,8 +177,8 @@ export default function Map({
               min="0.5"
               max="20"
               step="0.5"
-              value={gridSizeKm}
-              onChange={(e) => onGridSizeChange(Number(e.target.value))}
+              value={heatmapSizeKm}
+              onChange={(e) => onHeatmapSizeChange(Number(e.target.value))}
               className="w-full appearance-none cursor-pointer slider-thumb-purple"
             />
           </div>
@@ -200,8 +200,8 @@ export default function Map({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         
-        {/* Always show density grid if analysis is available */}
-        {gridAnalysis && <GridDensityOverlay showGrid={showGrid} gridAnalysis={gridAnalysis} />}
+        {/* Always show density heatmap if analysis is available */}
+        {heatmapAnalysis && <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={heatmapAnalysis} />}
         
         {/* Route polyline */}
         {route && route.points.length > 0 && (
@@ -213,8 +213,8 @@ export default function Map({
           />
         )}
         
-        {/* Fit bounds to grid analysis area */}
-        <FitBounds gridAnalysis={gridAnalysis} />
+        {/* Fit bounds to heatmap analysis area */}
+        <FitBounds heatmapAnalysis={heatmapAnalysis} />
       </MapContainer>
     </div>
   );

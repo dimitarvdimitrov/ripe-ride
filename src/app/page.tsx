@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { useGridAnalysis } from '@/hooks/useGridAnalysis';
+import { useHeatmapAnalysis } from '@/hooks/useHeatmapAnalysis';
 import { useRoutes, Route } from '@/hooks/useRoutes';
 import { useDebounce } from '@/hooks/useDebounce';
 
@@ -16,14 +16,14 @@ const Map = dynamic(() => import('@/components/Map'), {
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-  const [gridSizeKm, setGridSizeKm] = useState(5);
+  const [heatmapSizeKm, setHeatmapSizeKm] = useState(5);
   
   // Filter states
   const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]);
   const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]);
 
   // Debounce values to prevent excessive requests
-  const debouncedGridSize = useDebounce(gridSizeKm, 100);
+  const debouncedHeatmapSize = useDebounce(heatmapSizeKm, 100);
   const debouncedDistanceRange = useDebounce(distanceRange, 100);
   const debouncedElevationRange = useDebounce(elevationRange, 100);
   
@@ -34,7 +34,7 @@ export default function Home() {
     error: recentError
   } = useRoutes(
     'recent',
-    debouncedGridSize,
+    debouncedHeatmapSize,
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
@@ -47,28 +47,28 @@ export default function Home() {
     error: savedError
   } = useRoutes(
     'saved',
-    debouncedGridSize,
+    debouncedHeatmapSize,
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
     debouncedElevationRange[1]
   );
 
-  // Use React Query for grid analysis - always use recent routes for grid display
+  // Use React Query for heatmap analysis - always use recent routes for heatmap display
   const {
-    data: gridAnalysis,
-    isLoading: loadingGrid,
-    error: gridError
-  } = useGridAnalysis(
+    data: heatmapAnalysis,
+    isLoading: loadingHeatmap,
+    error: heatmapError
+  } = useHeatmapAnalysis(
     'recent',
-    debouncedGridSize,
+    debouncedHeatmapSize,
     recentRoutes.length > 0
   );
 
   const loading = loadingRecent || loadingSaved;
 
 
-  const hasCurrentAnalysis = gridAnalysis !== undefined;
+  const hasCurrentAnalysis = heatmapAnalysis !== undefined;
 
   return (
     <div className="h-screen flex">
@@ -161,30 +161,30 @@ export default function Home() {
 
         {/* Route List */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Grid Analysis Status */}
-          {hasCurrentAnalysis && gridAnalysis && (
+          {/* Heatmap Analysis Status */}
+          {hasCurrentAnalysis && heatmapAnalysis && (
             <div className="mb-4 bg-blue-50 border border-blue-200 rounded-md p-3">
               <div className="text-xs text-blue-800">
-                <p>📊 {gridAnalysis.routesProcessed} recent routes analyzed</p>
-                <p>🎯 {gridAnalysis.stats.totalGrids} grid squares with routes</p>
-                <p>📏 {(gridAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
-                <p className="mt-1 text-blue-600">Grid shows recent route coverage only</p>
+                <p>📊 {heatmapAnalysis.routesProcessed} recent routes analyzed</p>
+                <p>🎯 {heatmapAnalysis.stats.totalCells} heatmap cells with routes</p>
+                <p>📏 {(heatmapAnalysis.stats.totalDistance / 1000).toFixed(1)}km total distance</p>
+                <p className="mt-1 text-blue-600">Heatmap shows recent route coverage only</p>
               </div>
             </div>
           )}
           
-          {(loadingGrid || loading) && (
+          {(loadingHeatmap || loading) && (
             <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
               <div className="text-xs text-yellow-800">
-                <p>⏳ {loadingGrid ? 'Analyzing grid density...' : 'Loading routes...'}</p>
+                <p>⏳ {loadingHeatmap ? 'Analyzing heatmap density...' : 'Loading routes...'}</p>
               </div>
             </div>
           )}
           
-          {(gridError || recentError || savedError) && (
+          {(heatmapError || recentError || savedError) && (
             <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
               <div className="text-xs text-red-800">
-                <p>❌ Error: {gridError?.message || recentError?.message || savedError?.message}</p>
+                <p>❌ Error: {heatmapError?.message || recentError?.message || savedError?.message}</p>
               </div>
             </div>
           )}
@@ -259,9 +259,9 @@ export default function Home() {
             : [52.3676, 4.9041]} 
           zoom={13}
           route={selectedRoute}
-          gridAnalysis={gridAnalysis}
-          gridSizeKm={gridSizeKm}
-          onGridSizeChange={setGridSizeKm}
+          heatmapAnalysis={heatmapAnalysis}
+          heatmapSizeKm={heatmapSizeKm}
+          onHeatmapSizeChange={setHeatmapSizeKm}
         />
       </div>
     </div>

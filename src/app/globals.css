@@ -137,7 +137,7 @@ input[type="range"]::-moz-range-track {
   margin-top: -10px;
 }
 
-/* Slider thumb - purple for grid size */
+/* Slider thumb - purple for heatmap size */
 .slider-thumb-purple::-webkit-slider-thumb {
   -webkit-appearance: none;
   height: 13px;
