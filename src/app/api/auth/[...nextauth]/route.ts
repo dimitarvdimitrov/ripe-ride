@@ -18,6 +18,16 @@ export const authOptions: NextAuthOptions = {
           response_type: 'code',
         },
       },
+      // TODO simplify this by using the commented code below. we don't need to run our own requests You can also check out these docs https://github.com/nextauthjs/next-auth/blob/39dd3b92de194c1a835f2d87631f4deb9d9fdf65/docs/pages/getting-started/providers/strava.mdx#L4
+      // import Providers from 'next-auth/providers'
+      // ...
+      // providers: [
+      //   Providers.Strava({
+      //     clientId: process.env.STRAVA_CLIENT_ID,
+      //     clientSecret: process.env.STRAVA_CLIENT_SECRET,
+      //   })
+      // ]
+      // ...
       token: {
         url: 'https://www.strava.com/oauth/token',
         async request({ client, params, checks, provider }) {

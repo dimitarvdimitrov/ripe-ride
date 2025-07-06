@@ -56,7 +56,7 @@ export class StravaAPIClient {
     if (!response.ok) {
       throw new Error(`Failed to fetch activities: ${response.statusText}`);
     }
-
+    // TODO return only activities with {"type":"Ride"}
     return response.json();
   }
 
@@ -82,6 +82,7 @@ export class StravaAPIClient {
       throw new Error(`Failed to fetch routes: ${response.statusText}`);
     }
 
+    // TODO return routes only ride routes; remap the 'type'. from the docs: type integer	This route's type (1 for ride, 2 for runs) sub_type integer	This route's sub-type (1 for road, 2 for mountain bike, 3 for cross, 4 for trail, 5 for mixed) translate to "Run" and "Ride" and then filter for "Ride"
     return response.json();
   }
 

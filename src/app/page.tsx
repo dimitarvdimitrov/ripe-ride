@@ -40,6 +40,8 @@ export default function Home() {
   // Sync routes on first login
   useEffect(() => {
     const syncRoutes = async () => {
+      // TODO we need to have this logic in the backend - on the login endpoint.
+      // TODO we need to be able to call sync-routes via a button too on the main page instead of using the react state to control it
       if (session && !isFirstSync) {
         setIsFirstSync(true);
         try {
