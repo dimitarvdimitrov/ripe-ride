@@ -185,21 +185,26 @@ function calculateActualOverlapScore(
         return 1.0; // Maximum overlap if no distance covered
     }
 
+    // Create a map for faster lookups of all routes cells
+    const allRoutesCellMap = new Map<string, number>();
+    for (const cell of allRoutesHeatmap) {
+        const key = `${cell.cellX},${cell.cellY}`;
+        allRoutesCellMap.set(key, cell.distance);
+    }
+
     // For each cell in the single route heatmap
     // TODO after having made the change to use HeatmapTracker here lets have a method which returns an iterator over non-empty cells. Or perhaps has something like `eachNonEmpty(()=>{})` function
     for (const cell of singleRouteHeatmap) {
         // Calculate the percentage this cell represents of the total route
         const cellPercentage = cell.distance / totalRouteDistance;
 
-        // Get the coverage of this same cell in the comprehensive heatmap
-        // TODO add a method on HeatmapTracker which will find a cell given its x and y
-        const allRoutesCell = allRoutesHeatmap.find((value) => {
-            return value.cellX === cell.cellX && value.cellY === cell.cellY
-        });
+        // Get the coverage of this same cell in the comprehensive heatmap (O(1) lookup)
+        const key = `${cell.cellX},${cell.cellY}`;
+        const allRoutesCellDistance = allRoutesCellMap.get(key) || 0;
 
         // Weight the overlap by how much of the route passes through this cell
         // Higher allRoutesCell = more overlap in this area
-        weightedOverlap += cellPercentage * (allRoutesCell?.distance || 0);
+        weightedOverlap += cellPercentage * allRoutesCellDistance;
     }
 
     // Apply logarithmic scaling to spread out the values

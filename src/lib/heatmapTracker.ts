@@ -22,6 +22,14 @@ export interface HeatmapTracker {
   getDistance(cellX: number, cellY: number): number;
 
   /**
+   * Find a specific cell by its coordinates
+   * @param cellX Cell X coordinate
+   * @param cellY Cell Y coordinate
+   * @returns HeatmapCell if found, undefined otherwise
+   */
+  findCell(cellX: number, cellY: number): HeatmapCell | undefined;
+
+  /**
    * Get all heatmap cells with their distances
    * @returns Array of HeatmapCell objects
    */
@@ -88,6 +96,14 @@ export class ArrayHeatmapTracker implements HeatmapTracker {
   getDistance(cellX: number, cellY: number): number {
     const key = this.getCellKey(cellX, cellY);
     return this.heatmap.get(key) || 0;
+  }
+
+  findCell(cellX: number, cellY: number): HeatmapCell | undefined {
+    const distance = this.getDistance(cellX, cellY);
+    if (distance > 0) {
+      return { cellX, cellY, distance };
+    }
+    return undefined;
   }
 
   getAllCells(): HeatmapCell[] {
