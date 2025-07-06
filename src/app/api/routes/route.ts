@@ -77,18 +77,17 @@ export async function GET(request: NextRequest) {
 
                     const {
                         score,
-                        routeHeatmap
+                        routeHeatmap,
+                        routeHeatmapTracker
                     } = await calculateOverlapScore(loadedRoute, heatmapConfig, allRoutesHeatmap);
-                    const totalDistance = routeHeatmap.reduce((sum, cell) => sum + cell.distance, 0);
-                    const maxDistance = Math.max(...routeHeatmap.map(cell => cell.distance));
 
                     const routeHeatmapAnalysis = {
                         heatmapData: routeHeatmap,
                         stats: {
-                            totalCells: routeHeatmap.length,
-                            totalDistance,
-                            averageDistance: routeHeatmap.length > 0 ? totalDistance / routeHeatmap.length : 0,
-                            maxDistance
+                            totalCells: routeHeatmapTracker.getCellCount(),
+                            totalDistance: routeHeatmapTracker.getTotalDistance(),
+                            averageDistance: routeHeatmapTracker.getAverageDistance(),
+                            maxDistance: routeHeatmapTracker.getMaxDistance()
                         },
                         routesProcessed: 1
                     };
@@ -205,7 +204,7 @@ async function calculateOverlapScore(
     route: LoadedRoute,
     heatmapConfig: HeatmapConfig,
     allRoutesHeatmap: HeatmapTracker
-): Promise<{ score: number; routeHeatmap: HeatmapCell[] }> {
+): Promise<{ score: number; routeHeatmap: HeatmapCell[]; routeHeatmapTracker: HeatmapTracker }> {
 
     // Generate heatmap for this single route
     const singleRouteHeatmap = generateSingleRouteHeatmap(route, heatmapConfig);
@@ -213,5 +212,9 @@ async function calculateOverlapScore(
     // Calculate the actual overlap score
     const score = calculateActualOverlapScore(singleRouteHeatmap, allRoutesHeatmap);
 
-    return {score, routeHeatmap: singleRouteHeatmap.getAllCells()};
+    return {
+        score, 
+        routeHeatmap: singleRouteHeatmap.getAllCells(),
+        routeHeatmapTracker: singleRouteHeatmap
+    };
 }

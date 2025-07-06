@@ -67,7 +67,7 @@ export function processMultipleRoutes(
 }
 
 /**
- * Get heatmap statistics
+ * Get heatmap statistics using HeatmapTracker methods
  */
 export function getHeatmapStats(heatmapTracker: HeatmapTracker): {
   totalCells: number;
@@ -75,14 +75,10 @@ export function getHeatmapStats(heatmapTracker: HeatmapTracker): {
   averageDistance: number;
   maxDistance: number;
 } {
-  const allCells = heatmapTracker.getAllCells();
-  const totalDistance = allCells.reduce((sum, cell) => sum + cell.distance, 0);
-  const maxDistance = allCells.length > 0 ? Math.max(...allCells.map(c => c.distance)) : 0;
-  
   return {
-    totalCells: allCells.length,
-    totalDistance,
-    averageDistance: allCells.length > 0 ? totalDistance / allCells.length : 0,
-    maxDistance
+    totalCells: heatmapTracker.getCellCount(),
+    totalDistance: heatmapTracker.getTotalDistance(),
+    averageDistance: heatmapTracker.getAverageDistance(),
+    maxDistance: heatmapTracker.getMaxDistance()
   };
 }
