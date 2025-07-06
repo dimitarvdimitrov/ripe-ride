@@ -1,5 +1,5 @@
 import {NextRequest, NextResponse} from 'next/server';
-import {ArrayHeatmapTracker, type HeatmapCell} from '@/lib/heatmapTracker';
+import {ArrayHeatmapTracker, type HeatmapCell, type HeatmapTracker} from '@/lib/heatmapTracker';
 import {DEFAULT_REFERENCE_POINT, type HeatmapConfig} from '@/lib/heatmapConfig';
 import {FileSystemRouteLoader, type LoadedRoute} from '@/lib/routeLoader';
 import {processRoute} from '@/lib/routeProcessor';
@@ -133,19 +133,18 @@ function getRandomRecentDate(): string {
 function generateSingleRouteHeatmap(
     route: LoadedRoute,
     heatmapConfig: HeatmapConfig
-): HeatmapCell[] {
+): HeatmapTracker {
     const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
     // Process the route using the route processor
     processRoute(route, heatmapTracker);
 
-    return heatmapTracker.getAllCells();
+    return heatmapTracker;
 }
 
 // Load and generate heatmap for all recent routes
-async function generateRecentRoutesHeatmap(heatmapConfig: HeatmapConfig): Promise<HeatmapCell[]> {
+async function generateRecentRoutesHeatmap(heatmapConfig: HeatmapConfig): Promise<HeatmapTracker> {
     try {
-
         const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
         // Load all recent routes using the route loader (no filters for heatmap generation)
@@ -159,55 +158,43 @@ async function generateRecentRoutesHeatmap(heatmapConfig: HeatmapConfig): Promis
             }
         }
 
-        return heatmapTracker.getAllCells();
+        return heatmapTracker;
     } catch (error) {
         console.error('Error loading recent routes for heatmap:', error);
-        return [];
+        // Return empty heatmap tracker on error
+        return new ArrayHeatmapTracker(heatmapConfig);
     }
 }
 
 // Calculate actual overlap score by comparing single route vs all recent routes heatmap
 function calculateActualOverlapScore(
-    singleRouteHeatmap: HeatmapCell[],
-    allRoutesHeatmap: HeatmapCell[]
+    singleRouteHeatmap: HeatmapTracker,
+    allRoutesHeatmap: HeatmapTracker
 ): number {
-    if (singleRouteHeatmap.length === 0) {
-        return 1.0; // Maximum overlap if route has no coverage
-    }
-
     let totalRouteDistance = 0;
     let weightedOverlap = 0;
 
-    // Calculate total distance in the single route
-    for (const cell of singleRouteHeatmap.values()) {
+    // Calculate total distance in the single route using the new iterator method
+    singleRouteHeatmap.forEachNonEmpty((cell) => {
         totalRouteDistance += cell.distance;
-    }
+    });
 
     if (totalRouteDistance === 0) {
         return 1.0; // Maximum overlap if no distance covered
     }
 
-    // Create a map for faster lookups of all routes cells
-    const allRoutesCellMap = new Map<string, number>();
-    for (const cell of allRoutesHeatmap) {
-        const key = `${cell.cellX},${cell.cellY}`;
-        allRoutesCellMap.set(key, cell.distance);
-    }
-
-    // For each cell in the single route heatmap
-    // TODO after having made the change to use HeatmapTracker here lets have a method which returns an iterator over non-empty cells. Or perhaps has something like `eachNonEmpty(()=>{})` function
-    for (const cell of singleRouteHeatmap) {
+    // For each cell in the single route heatmap, use the new iterator method
+    singleRouteHeatmap.forEachNonEmpty((cell) => {
         // Calculate the percentage this cell represents of the total route
         const cellPercentage = cell.distance / totalRouteDistance;
 
-        // Get the coverage of this same cell in the comprehensive heatmap (O(1) lookup)
-        const key = `${cell.cellX},${cell.cellY}`;
-        const allRoutesCellDistance = allRoutesCellMap.get(key) || 0;
+        // Get the coverage of this same cell in the comprehensive heatmap using findCell method
+        const allRoutesCellDistance = allRoutesHeatmap.getDistance(cell.cellX, cell.cellY);
 
         // Weight the overlap by how much of the route passes through this cell
         // Higher allRoutesCell = more overlap in this area
         weightedOverlap += cellPercentage * allRoutesCellDistance;
-    }
+    });
 
     // Apply logarithmic scaling to spread out the values
     return weightedOverlap;
@@ -217,7 +204,7 @@ function calculateActualOverlapScore(
 async function calculateOverlapScore(
     route: LoadedRoute,
     heatmapConfig: HeatmapConfig,
-    allRoutesHeatmap: HeatmapCell[]
+    allRoutesHeatmap: HeatmapTracker
 ): Promise<{ score: number; routeHeatmap: HeatmapCell[] }> {
 
     // Generate heatmap for this single route
@@ -226,5 +213,5 @@ async function calculateOverlapScore(
     // Calculate the actual overlap score
     const score = calculateActualOverlapScore(singleRouteHeatmap, allRoutesHeatmap);
 
-    return {score, routeHeatmap: singleRouteHeatmap};
+    return {score, routeHeatmap: singleRouteHeatmap.getAllCells()};
 }
