@@ -87,8 +87,6 @@ export async function GET(request: NextRequest) {
                     const maxDistance = Math.max(...routeHeatmap.map(cell => cell.distance));
 
                     const routeHeatmapAnalysis = {
-                        // TODO after you do the above TODO, then just remove the heatmapConfig from this response
-                        heatmapConfig,
                         heatmapData: routeHeatmap,
                         stats: {
                             totalCells: routeHeatmap.length,

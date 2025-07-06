@@ -63,7 +63,6 @@ export async function GET(request: NextRequest) {
       const stats = getHeatmapStats(heatmapTracker);
 
       return NextResponse.json({
-        heatmapConfig,
         heatmapData,
         stats,
         routesProcessed: routes.length

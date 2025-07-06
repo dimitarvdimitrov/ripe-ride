@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
 import L from 'leaflet';
 import { type HeatmapCell } from '@/lib/heatmapTracker';
+import { createHeatmapConfig } from '@/lib/heatmapConfig';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -27,10 +28,6 @@ interface Route {
 }
 
 interface HeatmapAnalysis {
-  heatmapConfig: {
-    heatmapSizeKm: number;
-    referencePoint: [number, number];
-  };
   heatmapData: HeatmapCell[];
   stats: {
     totalCells: number;
@@ -90,10 +87,11 @@ function getHeatmapColor(distance: number, maxDistance: number): { color: string
 }
 
 // Component to show heatmap with route density visualization
-function HeatmapDensityOverlay({ showHeatmap, heatmapAnalysis }: { showHeatmap: boolean, heatmapAnalysis: HeatmapAnalysis | null }) {
+function HeatmapDensityOverlay({ showHeatmap, heatmapAnalysis, heatmapSizeKm }: { showHeatmap: boolean, heatmapAnalysis: HeatmapAnalysis | null, heatmapSizeKm: number }) {
   if (!showHeatmap || !heatmapAnalysis) return null;
   
-  const { heatmapData, heatmapConfig, stats } = heatmapAnalysis;
+  const { heatmapData, stats } = heatmapAnalysis;
+  const heatmapConfig = createHeatmapConfig(heatmapSizeKm);
   
   return (
     <>
@@ -118,16 +116,17 @@ function HeatmapDensityOverlay({ showHeatmap, heatmapAnalysis }: { showHeatmap: 
 }
 
 // Component to fit map bounds to heatmap analysis area
-function FitBounds({ heatmapAnalysis }: { heatmapAnalysis: HeatmapAnalysis | null }) {
+function FitBounds({ heatmapAnalysis, heatmapSizeKm }: { heatmapAnalysis: HeatmapAnalysis | null, heatmapSizeKm: number }) {
   const map = useMap();
   
   useEffect(() => {
     if (heatmapAnalysis && heatmapAnalysis.heatmapData.length > 0) {
       // Find the bounds of all heatmap cells
       const allBounds: L.LatLngBounds[] = [];
+      const heatmapConfig = createHeatmapConfig(heatmapSizeKm);
       
       heatmapAnalysis.heatmapData.forEach(cell => {
-        const bounds = cellToLatLngBounds(cell.cellX, cell.cellY, heatmapAnalysis.heatmapConfig);
+        const bounds = cellToLatLngBounds(cell.cellX, cell.cellY, heatmapConfig);
         allBounds.push(bounds);
       });
       
@@ -140,7 +139,7 @@ function FitBounds({ heatmapAnalysis }: { heatmapAnalysis: HeatmapAnalysis | nul
         map.fitBounds(combinedBounds, { padding: [50, 50] });
       }
     }
-  }, [heatmapAnalysis, map]);
+  }, [heatmapAnalysis, heatmapSizeKm, map]);
   
   return null;
 }
@@ -219,9 +218,9 @@ export default function Map({
         {/* Show density heatmap */}
         {(() => {
           if (heatmapMode === 'per-route' && route?.routeHeatmap) {
-            return <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={route.routeHeatmap} />;
+            return <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={route.routeHeatmap} heatmapSizeKm={heatmapSizeKm} />;
           }
-          return heatmapAnalysis && <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={heatmapAnalysis} />;
+          return heatmapAnalysis && <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={heatmapAnalysis} heatmapSizeKm={heatmapSizeKm} />;
         })()}
         
         {/* Route polyline */}
@@ -235,7 +234,7 @@ export default function Map({
         )}
         
         {/* Fit bounds to heatmap analysis area */}
-        <FitBounds heatmapAnalysis={heatmapAnalysis || null} />
+        <FitBounds heatmapAnalysis={heatmapAnalysis || null} heatmapSizeKm={heatmapSizeKm} />
       </MapContainer>
     </div>
   );
