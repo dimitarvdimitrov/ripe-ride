@@ -55,35 +55,6 @@
   --shadow-glow: 0 0 24px rgb(234 88 12 / 0.3);
 }
 
-@theme dark {
-  --color-background: #020617;
-  --color-foreground: #f8fafc;
-  
-  --color-card: #020617;
-  --color-card-foreground: #f8fafc;
-  
-  --color-popover: #020617;
-  --color-popover-foreground: #f8fafc;
-  
-  --color-primary: #f8fafc;
-  --color-primary-foreground: #0f172a;
-  
-  --color-secondary: #1e293b;
-  --color-secondary-foreground: #f8fafc;
-  
-  --color-muted: #1e293b;
-  --color-muted-foreground: #94a3b8;
-  
-  --color-accent: #1e293b;
-  --color-accent-foreground: #f8fafc;
-  
-  --color-destructive: #7f1d1d;
-  --color-destructive-foreground: #f8fafc;
-  
-  --color-border: #1e293b;
-  --color-input: #1e293b;
-  --color-ring: #cbd5e1;
-}
 
 /* Base styles */
 * {
@@ -94,6 +65,24 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Gradient utilities */
+.bg-gradient-speed {
+  background: linear-gradient(135deg, var(--color-speed-gradient-start), var(--color-speed-gradient-end));
+}
+
+/* Shadow utilities */
+.shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+
+.shadow-medium {
+  box-shadow: var(--shadow-medium);
+}
+
+.shadow-glow {
+  box-shadow: var(--shadow-glow);
 }
 
 /* Range slider styling */

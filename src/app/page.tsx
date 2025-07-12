@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useHeatmapAnalysis } from '@/hooks/useHeatmapAnalysis';
@@ -11,12 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import UserProfile from '@/components/UserProfile';
 import RouteFilters from '@/components/RouteFilters';
 import RouteCard from '@/components/RouteCard';
-
-// Dynamic import to avoid SSR issues with Leaflet
-const Map = dynamic(() => import('@/components/Map'), {
-  ssr: false,
-  loading: () => <p>Loading map...</p>
-});
+import RouteMap from '@/components/RouteMap';
 
 
 export default function Home() {
@@ -24,8 +18,6 @@ export default function Home() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-  const [heatmapSizeKm, setHeatmapSizeKm] = useState(5);
-  const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
   const [isFirstSync, setIsFirstSync] = useState(false);
   
   // Filter states
@@ -68,7 +60,6 @@ export default function Home() {
   }, [session, isFirstSync]);
 
   // Debounce values to prevent excessive requests
-  const debouncedHeatmapSize = useDebounce(heatmapSizeKm, 100);
   const debouncedDistanceRange = useDebounce(distanceRange, 100);
   const debouncedElevationRange = useDebounce(elevationRange, 100);
   
@@ -79,7 +70,7 @@ export default function Home() {
     error: recentError
   } = useRoutes(
     'recent',
-    debouncedHeatmapSize,
+    5, // default heatmap size
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
@@ -92,7 +83,7 @@ export default function Home() {
     error: savedError
   } = useRoutes(
     'saved',
-    debouncedHeatmapSize,
+    5, // default heatmap size
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
@@ -106,7 +97,7 @@ export default function Home() {
     error: heatmapError
   } = useHeatmapAnalysis(
     'recent',
-    debouncedHeatmapSize,
+    5, // default heatmap size
     recentRoutes.length > 0
   );
 
@@ -126,8 +117,6 @@ export default function Home() {
     return null;
   }
 
-  // For per-route mode, use the selected route's heatmap data
-  const currentHeatmapAnalysis = heatmapMode === 'per-route' ? selectedRoute?.routeHeatmap : heatmapAnalysis;
 
   // Separate routes by error status
   const validRecentRoutes = recentRoutes.filter(route => !route.error);
@@ -152,7 +141,8 @@ export default function Home() {
             <UserProfile 
               user={{
                 name: session.user?.name || 'Strava User',
-                image: session.user?.image,
+                avatar: session.user?.image,
+                connectedTo: 'Strava',
                 stats: {
                   totalRoutes: validRecentRoutes.length + validSavedRoutes.length,
                   totalDistance: `${Math.round(
@@ -262,20 +252,7 @@ export default function Home() {
 
           {/* Map Area */}
           <div className="lg:col-span-2">
-            <div className="h-full rounded-lg overflow-hidden bg-card border">
-              <Map 
-                center={selectedRoute && selectedRoute.points.length > 0 
-                  ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon] 
-                  : [52.3676, 4.9041]} 
-                zoom={13}
-                route={selectedRoute}
-                heatmapAnalysis={currentHeatmapAnalysis}
-                heatmapSizeKm={heatmapSizeKm}
-                onHeatmapSizeChange={setHeatmapSizeKm}
-                heatmapMode={heatmapMode}
-                onHeatmapModeChange={setHeatmapMode}
-              />
-            </div>
+            <RouteMap />
           </div>
         </div>
       </div>
