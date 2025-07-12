@@ -24,7 +24,7 @@ export default function Home() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
-  const [heatmapSizeKm, setHeatmapSizeKm] = useState(5);
+  const [heatmapSizeKm, setHeatmapSizeKm] = useState(1.5);
   const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
   const [isFirstSync, setIsFirstSync] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -205,7 +205,7 @@ export default function Home() {
               elevationRange={elevationRange}
               onDistanceRangeChange={setDistanceRange}
               onElevationRangeChange={setElevationRange}
-              heatmapAnalysis={heatmapAnalysis ?? null}
+              heatmapAnalysis={heatmapAnalysis}
             />
           </div>
 
