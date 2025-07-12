@@ -94,6 +94,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
     );
   }
 
+  // TODO the logic in getOverlapScoreStyle is correct, but we're not using it. Replace the core logic around scaling of getDiversityType with what's in getOverlapScoreStyle and then delete getOverlapScoreStyle and overlapStyle
   const diversityType = getDiversityType(route.overlapScore);
   const overlapStyle = getOverlapScoreStyle(route.overlapScore || 0);
 

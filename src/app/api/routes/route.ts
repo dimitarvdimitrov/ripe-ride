@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
         const folder = searchParams.get('folder');
 
         // Get filter parameters for scoring
+        // TODO add a start point parameter which would only return routes where the starting point (first point of the route) is within 200km of that point. The frontend would send the current center of the map as this parameter. We might actually need to make it two parameters (centerLat and centerLng)
         const heatmapSizeKm = parseFloat(searchParams.get('heatmapSize') || '5');
         const distanceMin = parseFloat(searchParams.get('distanceMin') || '0');
         const distanceMax = parseFloat(searchParams.get('distanceMax') || '200');
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
 
         // Use the route loader to load routes with filters
         const routeLoader = new FileSystemRouteLoader();
+        // TODO make the filters we pass to the RouteLoader be an object instead of these many parameters. Do this change in the RouteLoader interface and the implementation of RouteLoader
         const loadedRoutes = await routeLoader.loadFromFolder(folder, {
             distanceMin,
             distanceMax,

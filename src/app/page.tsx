@@ -53,7 +53,7 @@ export default function Home() {
           const response = await fetch('/api/sync-routes', {
             method: 'POST',
           });
-          
+
           if (response.ok) {
             const result = await response.json();
             console.log(`✅ Synced ${result.syncedCount} routes from Strava`);
@@ -144,6 +144,7 @@ export default function Home() {
 
 
   return (
+// TODO when the page is narrow for something like a mobile device, the map is effectively not visible. Make it so that the whole page is scrollable and you can reach the map if it's on a narrow screen (but not scrollable if all components fit on the page and it's a more horizontal page layout)
     <div className="h-screen bg-background p-4 overflow-hidden">
       <div className="max-w-[1600px] mx-auto h-full">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
@@ -152,7 +153,7 @@ export default function Home() {
             <UserProfile 
               user={{
                 name: session.user?.name || 'Strava User',
-                avatar: session.user?.image,
+                avatar: session.user?.image, // TODO fix the typing here
                 connectedTo: 'Strava',
                 stats: {
                   totalRoutes: validRecentRoutes.length + validSavedRoutes.length,
@@ -174,7 +175,7 @@ export default function Home() {
               elevationRange={elevationRange}
               onDistanceRangeChange={setDistanceRange}
               onElevationRangeChange={setElevationRange}
-              heatmapAnalysis={heatmapAnalysis}
+              heatmapAnalysis={heatmapAnalysis} // TODO fix the typing here
             />
           </div>
 

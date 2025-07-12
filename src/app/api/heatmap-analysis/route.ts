@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ArrayHeatmapTracker, HeatmapConfig } from '@/lib/heatmapTracker';
+import { ArrayHeatmapTracker } from '@/lib/heatmapTracker';
 import { processMultipleRoutes, getHeatmapStats } from '@/lib/routeProcessor';
 import { readdir, readFile } from 'fs/promises';
-import { createHeatmapConfig, DEFAULT_HEATMAP_SIZE_KM } from '@/lib/heatmapConfig';
+import { createHeatmapConfig } from '@/lib/heatmapConfig';
 import path from 'path';
 
 export async function GET(request: NextRequest) {
