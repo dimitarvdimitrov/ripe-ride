@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { MapPin, Mountain, Clock, Activity, Play, AlertTriangle } from 'lucide-react';
+import { MapPin, Mountain, Clock, Star, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Route } from '@/hooks/useRoutes';
 
@@ -35,11 +35,26 @@ const RouteCard: React.FC<RouteCardProps> = ({
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
-      case 'Easy': return 'bg-success/10 text-success border-success/20';
-      case 'Medium': return 'bg-primary/10 text-primary border-primary/20';
-      case 'Hard': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'Easy': return 'bg-success text-white';
+      case 'Medium': return 'bg-primary text-white';
+      case 'Hard': return 'bg-destructive text-white';
       default: return 'bg-muted text-muted-foreground';
     }
+  };
+
+  const getEstimatedDuration = (distance?: number): string => {
+    if (!distance) return '0h 0m';
+    const distanceKm = distance / 1000;
+    // Estimate based on 18 km/h average cycling speed
+    const hours = distanceKm / 18;
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return `${h}h ${m}m`;
+  };
+
+  const shouldShowStar = (route: Route): boolean => {
+    // Show star for routes with good diversity score or recently done
+    return route.lastDone !== undefined || (route.overlapScore !== undefined && route.overlapScore < 0.5);
   };
 
   const getOverlapScoreStyle = (score: number) => {
@@ -90,65 +105,49 @@ const RouteCard: React.FC<RouteCardProps> = ({
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+            <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate mb-2">
               {route.name}
             </h3>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge 
-                variant="outline" 
-                className={cn("text-xs", getDifficultyColor(difficulty))}
+                className={cn("text-xs px-2 py-1 font-medium", getDifficultyColor(difficulty))}
               >
                 {difficulty}
               </Badge>
               {route.lastDone && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs px-2 py-1">
                   Recent
                 </Badge>
               )}
             </div>
           </div>
-          {showOverlapScore && route.overlapScore !== undefined && (
-            <div className="ml-2 flex flex-col items-center flex-shrink-0">
-              <div className="text-xs text-muted-foreground mb-1">Diversity</div>
-              <div className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white",
-                overlapStyle.color
-              )}>
-                {overlapStyle.icon}
-              </div>
-            </div>
+          {shouldShowStar(route) && (
+            <Star className="h-5 w-5 text-primary fill-primary flex-shrink-0" />
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">
-              {route.distance ? `${(route.distance / 1000).toFixed(1)} km` : 'Unknown distance'}
+        <div className="grid grid-cols-3 gap-4 mt-4">
+          <div className="flex flex-col items-center text-center">
+            <MapPin className="h-4 w-4 text-muted-foreground mb-1" />
+            <span className="text-sm font-medium text-foreground">
+              {route.distance ? `${(route.distance / 1000).toFixed(1)}` : '0.0'}
             </span>
+            <span className="text-xs text-muted-foreground">km</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Mountain className="h-4 w-4 flex-shrink-0" />
-            <span className="truncate">
-              {route.elevation ? `${Math.round(route.elevation)}m` : 'Unknown elevation'}
+          <div className="flex flex-col items-center text-center">
+            <Mountain className="h-4 w-4 text-muted-foreground mb-1" />
+            <span className="text-sm font-medium text-foreground">
+              {route.elevation ? `${Math.round(route.elevation)}m` : 'Unknown'}
             </span>
+            <span className="text-xs text-muted-foreground">elevation</span>
           </div>
-          {route.lastDone && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground col-span-2">
-              <Clock className="h-4 w-4 flex-shrink-0" />
-              <span className="truncate">Last done: {route.lastDone}</span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button variant="speed" size="sm" className="flex-1">
-            <Play className="h-3 w-3 mr-1" />
-            View Route
-          </Button>
-          <Button variant="outline" size="sm">
-            <Activity className="h-3 w-3" />
-          </Button>
+          <div className="flex flex-col items-center text-center">
+            <Clock className="h-4 w-4 text-muted-foreground mb-1" />
+            <span className="text-sm font-medium text-foreground">
+              {getEstimatedDuration(route.distance)}
+            </span>
+            <span className="text-xs text-muted-foreground">duration</span>
+          </div>
         </div>
       </CardContent>
     </Card>
