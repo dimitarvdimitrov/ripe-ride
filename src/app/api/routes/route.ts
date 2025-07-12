@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
 
         // Use the route loader to load routes with filters
         const routeLoader = new FileSystemRouteLoader();
-        // TODO make the filters we pass to the RouteLoader be an object instead of these many parameters. Do this change in the RouteLoader interface and the implementation of RouteLoader
         const loadedRoutes = await routeLoader.loadFromFolder(folder, {
             distanceMin,
             distanceMax,
