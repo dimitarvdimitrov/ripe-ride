@@ -153,7 +153,7 @@ export default function Home() {
             <UserProfile 
               user={{
                 name: session.user?.name || 'Strava User',
-                avatar: session.user?.image, // TODO fix the typing here
+                avatar: session.user?.image ?? undefined,
                 connectedTo: 'Strava',
                 stats: {
                   totalRoutes: validRecentRoutes.length + validSavedRoutes.length,
