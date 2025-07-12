@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useHeatmapAnalysis } from '@/hooks/useHeatmapAnalysis';
@@ -10,7 +11,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import UserProfile from '@/components/UserProfile';
 import RouteFilters from '@/components/RouteFilters';
 import RouteCard from '@/components/RouteCard';
-import RouteMap from '@/components/RouteMap';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const Map = dynamic(() => import('@/components/Map'), {
+  ssr: false,
+  loading: () => <p>Loading map...</p>
+});
 
 
 export default function Home() {
@@ -18,6 +24,8 @@ export default function Home() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [heatmapSizeKm, setHeatmapSizeKm] = useState(5);
+  const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
   const [isFirstSync, setIsFirstSync] = useState(false);
   
   // Filter states
@@ -60,6 +68,7 @@ export default function Home() {
   }, [session, isFirstSync]);
 
   // Debounce values to prevent excessive requests
+  const debouncedHeatmapSize = useDebounce(heatmapSizeKm, 100);
   const debouncedDistanceRange = useDebounce(distanceRange, 100);
   const debouncedElevationRange = useDebounce(elevationRange, 100);
   
@@ -70,7 +79,7 @@ export default function Home() {
     error: recentError
   } = useRoutes(
     'recent',
-    5, // default heatmap size
+    debouncedHeatmapSize,
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
@@ -83,7 +92,7 @@ export default function Home() {
     error: savedError
   } = useRoutes(
     'saved',
-    5, // default heatmap size
+    debouncedHeatmapSize,
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
@@ -97,7 +106,7 @@ export default function Home() {
     error: heatmapError
   } = useHeatmapAnalysis(
     'recent',
-    5, // default heatmap size
+    debouncedHeatmapSize,
     recentRoutes.length > 0
   );
 
@@ -117,6 +126,8 @@ export default function Home() {
     return null;
   }
 
+  // For per-route mode, use the selected route's heatmap data
+  const currentHeatmapAnalysis = heatmapMode === 'per-route' ? selectedRoute?.routeHeatmap : heatmapAnalysis;
 
   // Separate routes by error status
   const validRecentRoutes = recentRoutes.filter(route => !route.error);
@@ -133,11 +144,11 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-[1600px] mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-2rem)]">
+    <div className="h-screen bg-background p-4 overflow-hidden">
+      <div className="max-w-[1600px] mx-auto h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
           {/* Left Sidebar */}
-          <div className="lg:col-span-1 space-y-6">
+          <div className="lg:col-span-1 space-y-6 flex flex-col h-full overflow-hidden">
             <UserProfile 
               user={{
                 name: session.user?.name || 'Strava User',
@@ -168,9 +179,9 @@ export default function Home() {
           </div>
 
           {/* Route List */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 h-full overflow-hidden">
             <div className="h-full flex flex-col">
-              <div className="flex-1">
+              <div className="flex-1 min-h-0">
                 <ScrollArea className="h-full pr-2">
                   {/* Loading and Error States */}
                   {(loadingHeatmap || loading) && (
@@ -251,8 +262,19 @@ export default function Home() {
           </div>
 
           {/* Map Area */}
-          <div className="lg:col-span-2">
-            <RouteMap />
+          <div className="lg:col-span-2 h-full overflow-hidden">
+            <Map 
+              center={selectedRoute && selectedRoute.points.length > 0 
+                ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon] 
+                : [52.3676, 4.9041]} 
+              zoom={13}
+              route={selectedRoute}
+              heatmapAnalysis={currentHeatmapAnalysis}
+              heatmapSizeKm={heatmapSizeKm}
+              onHeatmapSizeChange={setHeatmapSizeKm}
+              heatmapMode={heatmapMode}
+              onHeatmapModeChange={setHeatmapMode}
+            />
           </div>
         </div>
       </div>
