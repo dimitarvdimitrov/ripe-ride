@@ -25,6 +25,20 @@ export interface StravaRoute {
   type: string;
 }
 
+interface StravaApiRoute {
+  id: number;
+  name: string;
+  distance: number;
+  elevation_gain: number;
+  map: {
+    polyline: string;
+    summary_polyline: string;
+  };
+  created_at: string;
+  type: number; // 1 for ride, 2 for runs
+  sub_type: number; // 1 for road, 2 for mountain bike, 3 for cross, 4 for trail, 5 for mixed
+}
+
 export interface StravaTokens {
   access_token: string;
   refresh_token: string;
@@ -83,8 +97,15 @@ export class StravaAPIClient {
       throw new Error(`Failed to fetch routes: ${response.statusText}`);
     }
 
-    // TODO return routes only ride routes; remap the 'type'. from the docs: type integer	This route's type (1 for ride, 2 for runs) sub_type integer	This route's sub-type (1 for road, 2 for mountain bike, 3 for cross, 4 for trail, 5 for mixed) translate to "Run" and "Ride" and then filter for "Ride"
-    return response.json();
+    const apiRoutes: StravaApiRoute[] = await response.json();
+    
+    // Filter for ride routes only (type 1) and map to proper format
+    return apiRoutes
+      .filter(route => route.type === 1) // Only ride routes
+      .map(route => ({
+        ...route,
+        type: 'Ride',
+      }));
   }
 
   async getActivityById(id: number): Promise<StravaActivity> {
