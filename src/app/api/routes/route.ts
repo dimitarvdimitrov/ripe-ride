@@ -10,12 +10,16 @@ export async function GET(request: NextRequest) {
         const folder = searchParams.get('folder');
 
         // Get filter parameters for scoring
-        // TODO add a start point parameter which would only return routes where the starting point (first point of the route) is within 200km of that point. The frontend would send the current center of the map as this parameter. We might actually need to make it two parameters (centerLat and centerLng)
         const heatmapSizeKm = parseFloat(searchParams.get('heatmapSize') || '5');
         const distanceMin = parseFloat(searchParams.get('distanceMin') || '0');
         const distanceMax = parseFloat(searchParams.get('distanceMax') || '200');
         const elevationMin = parseFloat(searchParams.get('elevationMin') || '0');
         const elevationMax = parseFloat(searchParams.get('elevationMax') || '2000');
+        
+        // Geographic filtering parameters
+        const centerLat = searchParams.get('centerLat') ? parseFloat(searchParams.get('centerLat')!) : undefined;
+        const centerLng = searchParams.get('centerLng') ? parseFloat(searchParams.get('centerLng')!) : undefined;
+        const maxDistanceKm = parseFloat(searchParams.get('maxDistanceKm') || '200'); // Default 200km radius
 
         // Create shared heatmap configuration
         const heatmapConfig: HeatmapConfig = {
@@ -33,7 +37,10 @@ export async function GET(request: NextRequest) {
             distanceMin,
             distanceMax,
             elevationMin,
-            elevationMax
+            elevationMax,
+            centerLat,
+            centerLng,
+            maxDistanceKm
         });
 
         // Convert LoadedRoute format to API response format

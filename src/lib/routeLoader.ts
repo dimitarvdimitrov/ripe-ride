@@ -21,26 +21,26 @@ export interface LoadedRoute {
   error?: string;
 }
 
+export interface RouteFilters {
+  distanceMin?: number;
+  distanceMax?: number;
+  elevationMin?: number;
+  elevationMax?: number;
+  centerLat?: number;
+  centerLng?: number;
+  maxDistanceKm?: number;
+}
+
 export interface RouteLoader {
   /**
    * Load routes from a specific folder
    */
-  loadFromFolder(folder: 'recent' | 'saved', filters?: {
-    distanceMin?: number;
-    distanceMax?: number;
-    elevationMin?: number;
-    elevationMax?: number;
-  }): Promise<LoadedRoute[]>;
+  loadFromFolder(folder: 'recent' | 'saved', filters?: RouteFilters): Promise<LoadedRoute[]>;
   
   /**
    * Load routes from both folders
    */
-  loadAll(filters?: {
-    distanceMin?: number;
-    distanceMax?: number;
-    elevationMin?: number;
-    elevationMax?: number;
-  }): Promise<LoadedRoute[]>;
+  loadAll(filters?: RouteFilters): Promise<LoadedRoute[]>;
 }
 
 /**
@@ -129,12 +129,7 @@ export class FileSystemRouteLoader implements RouteLoader {
     this.basePath = basePath;
   }
   
-  async loadFromFolder(folder: 'recent' | 'saved', filters?: {
-    distanceMin?: number;
-    distanceMax?: number;
-    elevationMin?: number;
-    elevationMax?: number;
-  }): Promise<LoadedRoute[]> {
+  async loadFromFolder(folder: 'recent' | 'saved', filters?: RouteFilters): Promise<LoadedRoute[]> {
     try {
       const folderPath = path.join(this.basePath, folder);
       const files = await readdir(folderPath);
@@ -206,6 +201,22 @@ export class FileSystemRouteLoader implements RouteLoader {
           if (filters.elevationMin !== undefined && maxElevation < filters.elevationMin) return false;
           if (filters.elevationMax !== undefined && maxElevation > filters.elevationMax) return false;
           
+          // Apply geographic filter (distance from center point)
+          if (filters.centerLat !== undefined && filters.centerLng !== undefined && filters.maxDistanceKm !== undefined) {
+            if (route.points.length > 0) {
+              const startPoint = route.points[0];
+              const distanceToStart = calculateDistance(
+                filters.centerLat,
+                filters.centerLng,
+                startPoint.lat,
+                startPoint.lon
+              );
+              const distanceToStartKm = distanceToStart / 1000;
+              
+              if (distanceToStartKm > filters.maxDistanceKm) return false;
+            }
+          }
+          
           return true;
         });
       }
@@ -217,12 +228,7 @@ export class FileSystemRouteLoader implements RouteLoader {
     }
   }
   
-  async loadAll(filters?: {
-    distanceMin?: number;
-    distanceMax?: number;
-    elevationMin?: number;
-    elevationMax?: number;
-  }): Promise<LoadedRoute[]> {
+  async loadAll(filters?: RouteFilters): Promise<LoadedRoute[]> {
     const [recentRoutes, savedRoutes] = await Promise.all([
       this.loadFromFolder('recent', filters),
       this.loadFromFolder('saved', filters)
