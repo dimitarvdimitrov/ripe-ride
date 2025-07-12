@@ -4,10 +4,14 @@ import { MapContainer, TileLayer, Polyline, useMap, Rectangle } from 'react-leaf
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
 import L from 'leaflet';
-import { type HeatmapCell } from '@/lib/heatmapTracker';
 import { createHeatmapConfig } from '@/lib/heatmapConfig';
 import { type Route } from '@/hooks/useRoutes';
 import { type HeatmapAnalysis } from '@/hooks/useHeatmapAnalysis';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Eye, EyeOff, Layers, Map as MapIcon } from 'lucide-react';
 
 // Fix for default markers in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -140,84 +144,86 @@ export default function Map({
   const [showHeatmap, setShowHeatmap] = useState(true);
   
   return (
-    <div className="relative h-full w-full">
-      {/* Heatmap controls */}
-      <div className="absolute top-4 right-4 z-[1000] bg-white rounded-lg shadow-md border p-3 space-y-3">
-        <button
-          onClick={() => setShowHeatmap(!showHeatmap)}
-          className="w-full px-3 py-1 rounded text-sm font-medium hover:bg-gray-50 border"
-        >
-          {showHeatmap ? 'Hide Heatmap' : 'Show Heatmap'}
-        </button>
-        
-        {/* Heatmap Mode Toggle */}
-        <button
-          onClick={() => onHeatmapModeChange(heatmapMode === 'general' ? 'per-route' : 'general')}
-          className={`w-full px-3 py-1 rounded text-sm font-medium border transition-colors ${
-            heatmapMode === 'per-route' 
-              ? 'bg-blue-100 text-blue-700 border-blue-300' 
-              : 'hover:bg-gray-50 border-gray-300'
-          }`}
-          disabled={heatmapMode === 'per-route' && !route?.routeHeatmap}
-        >
-          {heatmapMode === 'general' ? 'Show Route Heatmap' : 'Show General Heatmap'}
-        </button>
-        
-        {/* Heatmap Size Control */}
-        <div className="min-w-[200px]">
-          <label className="block text-xs font-medium text-gray-700 mb-1">
-            Heatmap Size: {heatmapSizeKm}km
-          </label>
-          <div className="single-range-container">
-            <input
-              type="range"
-              min="0.5"
-              max="20"
-              step="0.5"
-              value={heatmapSizeKm}
-              onChange={(e) => onHeatmapSizeChange(Number(e.target.value))}
-              className="w-full appearance-none cursor-pointer slider-thumb-purple"
-            />
-          </div>
-          <div className="flex justify-between text-xs text-gray-500 mt-0.5">
-            <span>0.5km</span>
-            <span>20km</span>
+    <Card className="h-full shadow-medium border-border/50 flex flex-col">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MapIcon className="h-5 w-5 text-primary" />
+            Route Map
+          </CardTitle>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant={showHeatmap ? "speed" : "outline"} 
+              size="sm"
+              onClick={() => setShowHeatmap(!showHeatmap)}
+            >
+              {showHeatmap ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+              Heatmap
+            </Button>
+            <Button
+              variant={heatmapMode === 'per-route' ? "accent" : "outline"}
+              size="sm"
+              onClick={() => onHeatmapModeChange(heatmapMode === 'general' ? 'per-route' : 'general')}
+              disabled={heatmapMode === 'per-route' && !route?.routeHeatmap}
+            >
+              <Layers className="h-3 w-3 mr-1" />
+              {heatmapMode === 'general' ? 'Route View' : 'General View'}
+            </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground min-w-max">Size:</span>
+              <div className="w-20">
+                <Slider
+                  value={[heatmapSizeKm]}
+                  onValueChange={(value) => onHeatmapSizeChange(value[0])}
+                  max={20}
+                  min={0.5}
+                  step={0.5}
+                  className="w-full"
+                />
+              </div>
+              <Badge variant="outline" className="text-xs min-w-max">
+                {heatmapSizeKm}km
+              </Badge>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <MapContainer
-        center={center}
-        zoom={zoom}
-        className={className}
-        style={{ height: '100%', width: '100%' }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        
-        {/* Show density heatmap */}
-        {(() => {
-          if (heatmapMode === 'per-route' && route?.routeHeatmap) {
-            return <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={route.routeHeatmap} heatmapSizeKm={heatmapSizeKm} />;
-          }
-          return heatmapAnalysis && <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={heatmapAnalysis} heatmapSizeKm={heatmapSizeKm} />;
-        })()}
-        
-        {/* Route polyline */}
-        {route && route.points.length > 0 && (
-          <Polyline
-            positions={route.points.map(point => [point.lat, point.lon])}
-            color="#fc4c02"
-            weight={3.5}
-            opacity={0.7}
-          />
-        )}
-        
-        {/* Fit bounds to heatmap analysis area */}
-        <FitBounds heatmapAnalysis={heatmapAnalysis || null} heatmapSizeKm={heatmapSizeKm} />
-      </MapContainer>
-    </div>
+      </CardHeader>
+      <CardContent className="p-0 relative flex-1 flex flex-col">
+        <div className="flex-1 relative overflow-hidden">
+          <MapContainer
+            center={center}
+            zoom={zoom}
+            className={className}
+            style={{ height: '100%', width: '100%' }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            
+            {/* Show density heatmap */}
+            {(() => {
+              if (heatmapMode === 'per-route' && route?.routeHeatmap) {
+                return <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={route.routeHeatmap} heatmapSizeKm={heatmapSizeKm} />;
+              }
+              return heatmapAnalysis && <HeatmapDensityOverlay showHeatmap={showHeatmap} heatmapAnalysis={heatmapAnalysis} heatmapSizeKm={heatmapSizeKm} />;
+            })()}
+            
+            {/* Route polyline */}
+            {route && route.points.length > 0 && (
+              <Polyline
+                positions={route.points.map(point => [point.lat, point.lon])}
+                color="#ea580c"
+                weight={3.5}
+                opacity={0.7}
+              />
+            )}
+            
+            {/* Fit bounds to heatmap analysis area */}
+            <FitBounds heatmapAnalysis={heatmapAnalysis || null} heatmapSizeKm={heatmapSizeKm} />
+          </MapContainer>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
