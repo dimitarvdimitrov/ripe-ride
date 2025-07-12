@@ -1,77 +1,30 @@
 import NextAuth from 'next-auth'
 import { NextAuthOptions } from 'next-auth'
+import StravaProvider from 'next-auth/providers/strava'
+
+interface RefreshableToken {
+  accessToken?: string
+  refreshToken?: string
+  accessTokenExpires?: number
+  error?: string
+}
 
 export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
   providers: [
-    {
-      id: 'strava',
-      name: 'Strava',
-      type: 'oauth',
+    StravaProvider({
       clientId: process.env.STRAVA_CLIENT_ID!,
       clientSecret: process.env.STRAVA_CLIENT_SECRET!,
       authorization: {
-        url: 'https://www.strava.com/oauth/authorize',
         params: {
           scope: 'read,activity:read_all,profile:read_all',
           approval_prompt: 'force',
-          response_type: 'code',
         },
       },
-      // TODO simplify this by using the commented code below. we don't need to run our own requests You can also check out these docs https://github.com/nextauthjs/next-auth/blob/39dd3b92de194c1a835f2d87631f4deb9d9fdf65/docs/pages/getting-started/providers/strava.mdx#L4
-      // import Providers from 'next-auth/providers'
-      // ...
-      // providers: [
-      //   Providers.Strava({
-      //     clientId: process.env.STRAVA_CLIENT_ID,
-      //     clientSecret: process.env.STRAVA_CLIENT_SECRET,
-      //   })
-      // ]
-      // ...
-      token: {
-        url: 'https://www.strava.com/oauth/token',
-        async request({ client, params, checks, provider }) {
-          const response = await fetch('https://www.strava.com/oauth/token', {
-            method: 'POST',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-              client_id: provider.clientId!,
-              client_secret: provider.clientSecret!,
-              code: params.code!,
-              grant_type: 'authorization_code',
-            }),
-          });
-          
-          const tokens = await response.json();
-          return { tokens };
-        },
-      },
-      userinfo: {
-        url: 'https://www.strava.com/api/v3/athlete',
-        async request({ tokens, provider }) {
-          const response = await fetch('https://www.strava.com/api/v3/athlete', {
-            headers: {
-              Authorization: `Bearer ${tokens.access_token}`,
-            },
-          });
-          return await response.json();
-        },
-      },
-      profile(profile) {
-        return {
-          id: profile.id.toString(),
-          name: `${profile.firstname} ${profile.lastname}`,
-          email: profile.email,
-          image: profile.profile,
-        }
-      },
-    },
+    }),
   ],
   callbacks: {
-    async jwt({ token, account, user }) {
+    async jwt({ token, account }) {
       // Persist the OAuth access_token and refresh_token to the token right after signin
       if (account) {
         token.accessToken = account.access_token
@@ -99,7 +52,7 @@ export const authOptions: NextAuthOptions = {
   },
 }
 
-async function refreshAccessToken(token: any) {
+async function refreshAccessToken(token: RefreshableToken) {
   try {
     const response = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
