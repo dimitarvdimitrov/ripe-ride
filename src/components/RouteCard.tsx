@@ -25,7 +25,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
   minOverlapScore = 0,
   maxOverlapScore = 1
 }) => {
-  const getDifficultyFromOverlap = (overlapScore?: number): 'Explore' | 'Familiar' | 'Routine' => {
+  const getDiversityType = (overlapScore?: number): 'Explore' | 'Familiar' | 'Routine' => {
     if (overlapScore === undefined) return 'Explore'; // Default for routes without overlap data
     
     if (overlapScore < 0.33) {
@@ -37,8 +37,8 @@ const RouteCard: React.FC<RouteCardProps> = ({
     }
   };
 
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
+  const getDiversityColor = (diversityType: string) => {
+    switch (diversityType) {
       case 'Explore': return 'bg-success text-white';
       case 'Familiar': return 'bg-primary text-white';
       case 'Routine': return 'bg-destructive text-white';
@@ -94,7 +94,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
     );
   }
 
-  const difficulty = getDifficultyFromOverlap(route.overlapScore);
+  const diversityType = getDiversityType(route.overlapScore);
   const overlapStyle = getOverlapScoreStyle(route.overlapScore || 0);
 
   return (
@@ -114,9 +114,9 @@ const RouteCard: React.FC<RouteCardProps> = ({
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge 
-                className={cn("text-xs px-2 py-1 font-medium", getDifficultyColor(difficulty))}
+                className={cn("text-xs px-2 py-1 font-medium", getDiversityColor(diversityType))}
               >
-                {difficulty}
+                {diversityType}
               </Badge>
               {route.lastDone && (
                 <Badge variant="secondary" className="text-xs px-2 py-1">
