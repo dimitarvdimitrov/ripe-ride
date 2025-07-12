@@ -27,10 +27,39 @@ export default function Home() {
   const [heatmapSizeKm, setHeatmapSizeKm] = useState(5);
   const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
   const [isFirstSync, setIsFirstSync] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Filter states
   const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]);
   const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]);
+
+  // Manual sync function
+  const handleManualSync = async () => {
+    if (!session || isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      console.log('🔄 Manual sync triggered...');
+      const response = await fetch('/api/sync-routes', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log(`✅ Manually synced ${result.syncedCount} routes from Strava`);
+        // Refresh the route data by invalidating queries
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      } else {
+        console.error('❌ Failed to sync routes:', await response.text());
+      }
+    } catch (error) {
+      console.error('❌ Failed to sync routes:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -167,6 +196,8 @@ export default function Home() {
                   )}m`
                 }
               }}
+              onSync={handleManualSync}
+              isSyncing={isSyncing}
             />
             <RouteFilters
               activeTab={activeTab}

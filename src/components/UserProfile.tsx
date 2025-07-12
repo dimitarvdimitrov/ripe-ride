@@ -3,7 +3,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Settings, Zap } from 'lucide-react';
+import { LogOut, Settings, Zap, RefreshCw } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface UserProfileProps {
@@ -17,9 +17,11 @@ interface UserProfileProps {
       totalElevation: string;
     };
   };
+  onSync?: () => void;
+  isSyncing?: boolean;
 }
 
-const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
+const UserProfile: React.FC<UserProfileProps> = ({ user, onSync, isSyncing }) => {
   return (
     <Card className="shadow-soft border-border/50">
       <CardContent className="p-3">
@@ -40,6 +42,18 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
             )}
           </div>
           <div className="flex flex-col gap-1">
+            {onSync && (
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8" 
+                onClick={onSync}
+                disabled={isSyncing}
+                title="Sync routes from Strava"
+              >
+                <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="text-muted-foreground h-8 w-8">
               <Settings className="h-4 w-4" />
             </Button>
