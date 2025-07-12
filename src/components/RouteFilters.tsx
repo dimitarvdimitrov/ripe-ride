@@ -31,10 +31,15 @@ const RouteFilters: React.FC<RouteFiltersProps> = ({
   onElevationRangeChange,
   heatmapAnalysis
 }) => {
+  const handleTabChange = (value: string) => {
+    if (value === 'recent' || value === 'saved') {
+      onTabChange(value);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/*TODO fix the types here for onValueChange; i think we have to add some validation in case the value from onValueChange is not one of the valid two types*/}
-      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-2 bg-muted/50">
           <TabsTrigger value="recent" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <TrendingUp className="h-4 w-4 mr-2" />
