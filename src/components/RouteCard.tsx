@@ -39,9 +39,9 @@ const RouteCard: React.FC<RouteCardProps> = ({
 
   const getDiversityColor = (diversityType: string) => {
     switch (diversityType) {
-      case 'Explore': return 'bg-success text-white';
-      case 'Familiar': return 'bg-primary text-white';
-      case 'Routine': return 'bg-destructive text-white';
+      case 'Explore': return 'bg-success/10 text-success border-success/20';
+      case 'Familiar': return 'bg-primary/10 text-primary border-primary/20';
+      case 'Routine': return 'bg-destructive/10 text-destructive border-destructive/20';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -114,7 +114,8 @@ const RouteCard: React.FC<RouteCardProps> = ({
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge 
-                className={cn("text-xs px-2 py-1 font-medium", getDiversityColor(diversityType))}
+                variant="outline"
+                className={cn("text-xs", getDiversityColor(diversityType))}
               >
                 {diversityType}
               </Badge>
