@@ -56,8 +56,9 @@ export class StravaAPIClient {
     if (!response.ok) {
       throw new Error(`Failed to fetch activities: ${response.statusText}`);
     }
-    // TODO return only activities with {"type":"Ride"}
-    return response.json();
+    
+    const activities: StravaActivity[] = await response.json();
+    return activities.filter(activity => activity.type === 'Ride');
   }
 
   async getRecentActivities(page = 1, perPage = 30): Promise<StravaActivity[]> {
