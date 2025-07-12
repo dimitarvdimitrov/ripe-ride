@@ -132,8 +132,7 @@ input[type="range"] {
 }
 
 /* Slider track */
-/* TODO is -webkit-slider-track a real selector? */
-input[type="range"]::-webkit-slider-track {
+input[type="range"]::-webkit-slider-runnable-track {
   background: transparent;
   height: 6px;
   border-radius: 3px;
