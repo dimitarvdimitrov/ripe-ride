@@ -26,14 +26,18 @@ const RouteCard: React.FC<RouteCardProps> = ({
   maxOverlapScore = 1
 }) => {
   const getDiversityType = (overlapScore?: number): 'Explore' | 'Familiar' | 'Routine' => {
-    if (overlapScore === undefined) return 'Explore'; // Default for routes without overlap data
+    if (!showOverlapScore || overlapScore === undefined) return 'Explore'; // Default for routes without overlap data
     
-    if (overlapScore < 0.33) {
-      return 'Explore'; // Very diverse routes
-    } else if (overlapScore < 0.67) {
-      return 'Familiar'; // Moderately diverse routes
+    // Use proper normalization like in getOverlapScoreStyle
+    const range = maxOverlapScore - minOverlapScore;
+    const normalizedScore = range === 0 ? 0 : (overlapScore - minOverlapScore) / range;
+    
+    if (normalizedScore < 0.33) {
+      return 'Explore'; // Most diverse (lowest overlap)
+    } else if (normalizedScore < 0.67) {
+      return 'Familiar'; // Moderately diverse
     } else {
-      return 'Routine'; // Less diverse routes (high overlap)
+      return 'Routine'; // Least diverse (highest overlap)
     }
   };
 
@@ -61,20 +65,6 @@ const RouteCard: React.FC<RouteCardProps> = ({
     return route.lastDone !== undefined || (route.overlapScore !== undefined && route.overlapScore < 0.5);
   };
 
-  const getOverlapScoreStyle = (score: number) => {
-    if (!showOverlapScore || score === undefined) return { color: 'bg-gray-500', icon: '○' };
-    
-    const range = maxOverlapScore - minOverlapScore;
-    const normalizedScore = range === 0 ? 0 : (score - minOverlapScore) / range;
-    
-    if (normalizedScore < 0.33) {
-      return { color: 'bg-success', icon: '★' }; // Most diverse (lowest overlap)
-    } else if (normalizedScore < 0.67) {
-      return { color: 'bg-primary', icon: '◐' }; // Moderately diverse
-    } else {
-      return { color: 'bg-destructive', icon: '○' }; // Least diverse (highest overlap)
-    }
-  };
 
   // Handle error routes
   if (route.error) {
@@ -94,9 +84,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
     );
   }
 
-  // TODO the logic in getOverlapScoreStyle is correct, but we're not using it. Replace the core logic around scaling of getDiversityType with what's in getOverlapScoreStyle and then delete getOverlapScoreStyle and overlapStyle
   const diversityType = getDiversityType(route.overlapScore);
-  const overlapStyle = getOverlapScoreStyle(route.overlapScore || 0);
 
   return (
     <Card 
