@@ -175,7 +175,7 @@ export default function Home() {
               elevationRange={elevationRange}
               onDistanceRangeChange={setDistanceRange}
               onElevationRangeChange={setElevationRange}
-              heatmapAnalysis={heatmapAnalysis} // TODO fix the typing here
+              heatmapAnalysis={heatmapAnalysis ?? null}
             />
           </div>
 
