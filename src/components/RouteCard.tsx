@@ -25,27 +25,19 @@ const RouteCard: React.FC<RouteCardProps> = ({
   minOverlapScore = 0,
   maxOverlapScore = 1
 }) => {
-  const getDifficultyFromDistance = (distance?: number): 'Explore' | 'Familiar' | 'Routine' => {
-    if (!distance) return 'Explore';
-    const distanceKm = distance / 1000;
-    if (distanceKm < 30) return 'Explore';
-    if (distanceKm < 60) return 'Familiar';
-    return 'Routine';
+  const getDifficultyFromOverlap = (overlapScore?: number): 'Explore' | 'Familiar' | 'Routine' => {
+    if (overlapScore === undefined) return 'Explore'; // Default for routes without overlap data
+    
+    if (overlapScore < 0.33) {
+      return 'Explore'; // Very diverse routes
+    } else if (overlapScore < 0.67) {
+      return 'Familiar'; // Moderately diverse routes
+    } else {
+      return 'Routine'; // Less diverse routes (high overlap)
+    }
   };
 
-  const getDifficultyColor = (difficulty: string, overlapScore?: number) => {
-    // If we have an overlap score, use it to determine color (lower score = more diverse = green)
-    if (overlapScore !== undefined) {
-      if (overlapScore < 0.33) {
-        return 'bg-success text-white'; // Very diverse (green)
-      } else if (overlapScore < 0.67) {
-        return 'bg-primary text-white'; // Moderately diverse (blue)
-      } else {
-        return 'bg-destructive text-white'; // Less diverse (red)
-      }
-    }
-    
-    // Fallback to distance-based coloring
+  const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case 'Explore': return 'bg-success text-white';
       case 'Familiar': return 'bg-primary text-white';
@@ -102,7 +94,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
     );
   }
 
-  const difficulty = getDifficultyFromDistance(route.distance);
+  const difficulty = getDifficultyFromOverlap(route.overlapScore);
   const overlapStyle = getOverlapScoreStyle(route.overlapScore || 0);
 
   return (
@@ -122,7 +114,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge 
-                className={cn("text-xs px-2 py-1 font-medium", getDifficultyColor(difficulty, route.overlapScore))}
+                className={cn("text-xs px-2 py-1 font-medium", getDifficultyColor(difficulty))}
               >
                 {difficulty}
               </Badge>
