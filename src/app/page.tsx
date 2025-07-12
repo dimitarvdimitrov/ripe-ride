@@ -173,12 +173,11 @@ export default function Home() {
 
 
   return (
-// TODO when the page is narrow for something like a mobile device, the map is effectively not visible. Make it so that the whole page is scrollable and you can reach the map if it's on a narrow screen (but not scrollable if all components fit on the page and it's a more horizontal page layout)
-    <div className="h-screen bg-background p-4 overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-background p-4 lg:overflow-hidden">
       <div className="max-w-[1600px] mx-auto h-full">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-full lg:h-full">
           {/* Left Sidebar */}
-          <div className="lg:col-span-1 space-y-6 flex flex-col h-full overflow-hidden">
+          <div className="lg:col-span-1 space-y-6 flex flex-col h-auto lg:h-full overflow-hidden">
             <UserProfile 
               user={{
                 name: session.user?.name || 'Strava User',
@@ -211,7 +210,7 @@ export default function Home() {
           </div>
 
           {/* Route List */}
-          <div className="lg:col-span-1 h-full overflow-hidden">
+          <div className="lg:col-span-1 h-96 lg:h-full overflow-hidden">
             <div className="h-full flex flex-col">
               <div className="flex-1 min-h-0">
                 <ScrollArea className="h-full pr-2">
@@ -294,7 +293,7 @@ export default function Home() {
           </div>
 
           {/* Map Area */}
-          <div className="lg:col-span-2 h-full overflow-hidden">
+          <div className="lg:col-span-2 h-96 lg:h-full overflow-hidden">
             <Map 
               center={selectedRoute && selectedRoute.points.length > 0 
                 ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon] 
