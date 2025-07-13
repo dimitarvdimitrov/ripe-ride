@@ -257,7 +257,6 @@ export default function Home() {
                                 console.log(`📍 Selected route: ${route.name} (${route.points.length} points)`);
                                 setSelectedRoute(route);
                               }}
-                              showOverlapScore={true}
                               minOverlapScore={minOverlapScore}
                               maxOverlapScore={maxOverlapScore}
                               className="animate-fade-in"

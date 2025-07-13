@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query';
-import { type HeatmapCell } from '@/lib/heatmapTracker';
 import { type HeatmapAnalysis } from './useHeatmapAnalysis';
 
 
@@ -7,7 +6,7 @@ export interface Route {
   id: string;
   name: string;
   distance?: number; // Distance in meters, null if error
-  elevation?: number; // Max elevation in meters, null if error
+  elevation?: number; // Max elevation in meters, null if error; // TODO actually calculate elevation
   lastDone?: string;
   points: { lat: number; lon: number; elevation?: number }[];
   error?: string;
