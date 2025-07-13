@@ -35,35 +35,6 @@ export function processRoutes(routes: Route[], heatmapTracker: HeatmapTracker): 
 }
 
 /**
- * Process multiple routes from simple coordinate arrays
- */
-export function processMultipleRoutes(
-  routes: { lat: number; lng: number }[][],
-  heatmapTracker: HeatmapTracker
-): void {
-  // Reset heatmap before processing
-  heatmapTracker.reset();
-  
-  for (const route of routes) {
-    if (route.length < 2) continue;
-    
-    for (let i = 1; i < route.length; i++) {
-      const prev = route[i - 1];
-      const curr = route[i];
-      
-      const distance = calculateDistance(prev.lat, prev.lng, curr.lat, curr.lng);
-      
-      // Calculate the midpoint to determine which heatmap cell this segment belongs to
-      const midLat = (prev.lat + curr.lat) / 2;
-      const midLng = (prev.lng + curr.lng) / 2;
-      
-      // Add this segment distance to the heatmap cell containing the midpoint
-      heatmapTracker.addDistance(midLat, midLng, distance);
-    }
-  }
-}
-
-/**
  * Get heatmap statistics using HeatmapTracker methods
  */
 export function getHeatmapStats(heatmapTracker: HeatmapTracker): {

@@ -1,8 +1,8 @@
 import {NextRequest, NextResponse} from 'next/server';
 import {ArrayHeatmapTracker, type HeatmapCell, type HeatmapTracker} from '@/lib/heatmapTracker';
 import {DEFAULT_REFERENCE_POINT, type HeatmapConfig} from '@/lib/heatmapConfig';
-import {processRoute} from '@/lib/routeProcessor';
 import {FileSystemRouteLoader, type Route} from '@/lib/routeLoader';
+import {processRoute, processRoutes} from '@/lib/routeProcessor';
 
 export async function GET(request: NextRequest) {
     try {
@@ -150,20 +150,15 @@ function generateSingleRouteHeatmap(
 }
 
 // Load and generate heatmap for all recent routes
+// TODO generate this once and cache it with some TTL; regenerate when syncing with strava
 async function generateRecentRoutesHeatmap(heatmapConfig: HeatmapConfig): Promise<HeatmapTracker> {
     try {
         const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
         // Load all recent routes using the route loader (no filters for heatmap generation)
-        const routeLoader = new FileSystemRouteLoader();
-        const recentRoutes = await routeLoader.loadFromFolder('recent');
+        const recentRoutes = await new FileSystemRouteLoader().loadFromFolder('recent');
 
-        // Process each recent route
-        for (const route of recentRoutes) {
-            if (!route.error && route.points.length > 0) {
-                processRoute(route, heatmapTracker);
-            }
-        }
+        processRoutes(recentRoutes, heatmapTracker);
 
         return heatmapTracker;
     } catch (error) {

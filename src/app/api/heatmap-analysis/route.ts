@@ -1,15 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { ArrayHeatmapTracker } from '@/lib/heatmapTracker';
-import { processMultipleRoutes, getHeatmapStats } from '@/lib/routeProcessor';
-import { readdir, readFile } from 'fs/promises';
-import { createHeatmapConfig } from '@/lib/heatmapConfig';
-import path from 'path';
+import {NextRequest, NextResponse} from 'next/server';
+import {ArrayHeatmapTracker} from '@/lib/heatmapTracker';
+import {getHeatmapStats, processRoutes} from '@/lib/routeProcessor';
+import {createHeatmapConfig} from '@/lib/heatmapConfig';
+import {FileSystemRouteLoader} from "@/lib/routeLoader";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get('folder') || 'recent';
-    
+
     // Heatmap size is required
     const heatmapSizeParam = searchParams.get('heatmapSize');
     if (!heatmapSizeParam) {
@@ -29,34 +28,11 @@ export async function GET(request: NextRequest) {
     const heatmapConfig = createHeatmapConfig(heatmapSizeKm);
     const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
-    // Read GPX files from the specified folder
-    const folderPath = path.join(process.cwd(), folder);
-    
     try {
-      const files = await readdir(folderPath);
-      const gpxFiles = files.filter(file => file.endsWith('.gpx'));
-      
-      console.log(`📂 Found ${gpxFiles.length} GPX files in ${folder}/`);
-      
-      const routes = [];
-      
-      for (const file of gpxFiles) {
-        try {
-          const filePath = path.join(folderPath, file);
-          const gpxData = await readFile(filePath, 'utf-8');
-          
-          // Basic GPX parsing to extract coordinates
-          const coordinates = extractCoordinatesFromGPX(gpxData);
-          if (coordinates.length > 0) {
-            routes.push(coordinates);
-          }
-        } catch (error) {
-          console.error(`❌ Error reading ${file}:`, error);
-        }
-      }
+      const routes = await new FileSystemRouteLoader().loadFromFolder('recent')
 
       // Process routes and accumulate heatmap data
-      processMultipleRoutes(routes, heatmapTracker);
+      processRoutes(routes, heatmapTracker);
 
       // Get processed data
       const heatmapData = heatmapTracker.getAllCells();
@@ -75,23 +51,4 @@ export async function GET(request: NextRequest) {
     console.error('Error in heatmap analysis API:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
-
-function extractCoordinatesFromGPX(gpxData: string): { lat: number; lng: number }[] {
-  const coordinates: { lat: number; lng: number }[] = [];
-  
-  // Simple regex-based parsing for track points
-  const trkptRegex = /<trkpt[^>]+lat="([^"]+)"[^>]+lon="([^"]+)"/g;
-  let match;
-  
-  while ((match = trkptRegex.exec(gpxData)) !== null) {
-    const lat = parseFloat(match[1]);
-    const lng = parseFloat(match[2]);
-    
-    if (!isNaN(lat) && !isNaN(lng)) {
-      coordinates.push({ lat, lng });
-    }
-  }
-  
-  return coordinates;
 }
