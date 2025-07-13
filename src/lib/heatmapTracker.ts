@@ -44,18 +44,6 @@ export interface HeatmapTracker {
   getTotalDistance(): number;
 
   /**
-   * Get maximum distance in any cell
-   * @returns Maximum distance in meters
-   */
-  getMaxDistance(): number;
-
-  /**
-   * Get average distance per cell (for non-empty cells)
-   * @returns Average distance in meters
-   */
-  getAverageDistance(): number;
-
-  /**
    * Get count of non-empty cells
    * @returns Number of cells with distance > 0
    */
@@ -149,22 +137,6 @@ export class ArrayHeatmapTracker implements HeatmapTracker {
       total += cell.distance;
     });
     return total;
-  }
-
-  getMaxDistance(): number {
-    let max = 0;
-    this.forEachNonEmpty((cell) => {
-      if (cell.distance > max) {
-        max = cell.distance;
-      }
-    });
-    return max;
-  }
-
-  getAverageDistance(): number {
-    const totalDistance = this.getTotalDistance();
-    const cellCount = this.getCellCount();
-    return cellCount > 0 ? totalDistance / cellCount : 0;
   }
 
   getCellCount(): number {
