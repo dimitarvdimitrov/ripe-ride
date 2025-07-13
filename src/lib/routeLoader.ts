@@ -46,11 +46,11 @@ export interface RouteLoader {
 /**
  * Parse GPX data using XML parser
  */
-function parseGPXWithXML(gpxData: string): {
+async function parseGPXWithXML(gpxData: string): Promise<{
   points: RoutePoint[];
   name?: string;
-} {
-  const { JSDOM } = require('jsdom');
+}> {
+  const { JSDOM } = await import('jsdom');
   const dom = new JSDOM();
   const parser = new dom.window.DOMParser();
   
@@ -68,7 +68,7 @@ function parseGPXWithXML(gpxData: string): {
     const trkptElements = xmlDoc.querySelectorAll('trkpt');
     const points: RoutePoint[] = [];
     
-    trkptElements.forEach((trkpt: any) => {
+    trkptElements.forEach((trkpt: Element) => {
       const lat = parseFloat(trkpt.getAttribute('lat') || '');
       const lon = parseFloat(trkpt.getAttribute('lon') || '');
       
@@ -146,7 +146,7 @@ export class FileSystemRouteLoader implements RouteLoader {
 
               console.log(`📍 Parsing ${file}`);
 
-              const parseResult = parseGPXWithXML(gpxData);
+              const parseResult = await parseGPXWithXML(gpxData);
               const points = parseResult.points;
 
               console.log(`📍 Found ${points.length} points in ${file}`);
@@ -172,7 +172,7 @@ export class FileSystemRouteLoader implements RouteLoader {
                 totalDistance,
                 folder
               };
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error(`❌ Error parsing ${file}:`, error);
               return {
                 id: file.replace('.gpx', ''),
@@ -180,7 +180,7 @@ export class FileSystemRouteLoader implements RouteLoader {
                 points: [],
                 totalDistance: 0,
                 folder,
-                error: `Failed to parse GPX: ${error.message}`
+                error: `Failed to parse GPX: ${error instanceof Error ? error.message : 'Unknown error'}`
               };
             }
           })
