@@ -5,12 +5,13 @@ import path from 'path';
 import { StravaAPIClient, decodePolyline } from '@/lib/strava';
 
 // Import the auth options from the NextAuth route
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 
 export async function POST() {
   try {
     const session = await getServerSession(authOptions);
-    
+
+    // TODO we need to store the session information and strava access token somewhere
     if (!session || !session.accessToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
