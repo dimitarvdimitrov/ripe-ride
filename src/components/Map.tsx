@@ -183,7 +183,7 @@ export default function Map({
               {heatmapMode === 'general' ? 'Route View' : 'General View'}
             </Button>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground min-w-max">Size:</span>
+              <span className="text-xs text-muted-foreground min-w-max">Resolution:</span>
               <div className="w-20">
                 <Slider
                   value={[heatmapSizeKm]}
