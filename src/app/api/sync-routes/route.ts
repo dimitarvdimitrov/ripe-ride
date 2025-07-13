@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import path from 'path';
@@ -7,7 +7,7 @@ import { StravaAPIClient, decodePolyline } from '@/lib/strava';
 // Import the auth options from the NextAuth route
 import { authOptions } from '../auth/[...nextauth]/route';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getServerSession(authOptions);
     
