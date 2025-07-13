@@ -1,8 +1,8 @@
 import {NextRequest, NextResponse} from 'next/server';
 import {ArrayHeatmapTracker, type HeatmapCell, type HeatmapTracker} from '@/lib/heatmapTracker';
 import {DEFAULT_REFERENCE_POINT, type HeatmapConfig} from '@/lib/heatmapConfig';
-import {FileSystemRouteLoader, type LoadedRoute} from '@/lib/routeLoader';
 import {processRoute} from '@/lib/routeProcessor';
+import {FileSystemRouteLoader, type Route} from '@/lib/routeLoader';
 
 export async function GET(request: NextRequest) {
     try {
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
                 validRoutes.map(async (route) => {
                 try {
                     // Convert API route back to LoadedRoute format for processing
-                    const loadedRoute: LoadedRoute = {
+                    const loadedRoute: Route = {
                         id: route.id,
                         name: route.name,
                         points: route.points,
@@ -138,7 +138,7 @@ function getRandomRecentDate(): string {
 
 // Generate heatmap for a single route
 function generateSingleRouteHeatmap(
-    route: LoadedRoute,
+    route: Route,
     heatmapConfig: HeatmapConfig
 ): HeatmapTracker {
     const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
@@ -209,7 +209,7 @@ function calculateActualOverlapScore(
 
 // Calculate overlap score using proper heatmap analysis
 async function calculateOverlapScore(
-    route: LoadedRoute,
+    route: Route,
     heatmapConfig: HeatmapConfig,
     allRoutesHeatmap: HeatmapTracker
 ): Promise<{ score: number; routeHeatmap: HeatmapCell[]; routeHeatmapTracker: HeatmapTracker }> {

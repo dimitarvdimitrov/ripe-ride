@@ -12,7 +12,7 @@ export interface RoutePoint {
   midLon?: number; // Midpoint longitude between this and previous point
 }
 
-export interface LoadedRoute {
+export interface Route {
   id: string;
   name: string;
   points: RoutePoint[];
@@ -35,12 +35,12 @@ export interface RouteLoader {
   /**
    * Load routes from a specific folder
    */
-  loadFromFolder(folder: 'recent' | 'saved', filters?: RouteFilters): Promise<LoadedRoute[]>;
+  loadFromFolder(folder: 'recent' | 'saved', filters?: RouteFilters): Promise<Route[]>;
   
   /**
    * Load routes from both folders
    */
-  loadAll(filters?: RouteFilters): Promise<LoadedRoute[]>;
+  loadAll(filters?: RouteFilters): Promise<Route[]>;
 }
 
 /**
@@ -128,8 +128,9 @@ export class FileSystemRouteLoader implements RouteLoader {
   constructor(basePath: string = process.cwd()) {
     this.basePath = basePath;
   }
-  
-  async loadFromFolder(folder: 'recent' | 'saved', filters?: RouteFilters): Promise<LoadedRoute[]> {
+
+  // TODO instead of passing folder name have two methods - loadRecentRoutes and loadSavedRoutes
+  async loadFromFolder(folder: 'recent' | 'saved', filters?: RouteFilters): Promise<Route[]> {
     try {
       const folderPath = path.join(this.basePath, folder);
       const files = await readdir(folderPath);
@@ -228,7 +229,7 @@ export class FileSystemRouteLoader implements RouteLoader {
     }
   }
   
-  async loadAll(filters?: RouteFilters): Promise<LoadedRoute[]> {
+  async loadAll(filters?: RouteFilters): Promise<Route[]> {
     const [recentRoutes, savedRoutes] = await Promise.all([
       this.loadFromFolder('recent', filters),
       this.loadFromFolder('saved', filters)

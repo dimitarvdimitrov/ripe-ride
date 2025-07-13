@@ -105,7 +105,7 @@ export function latLngToHeatmap(
  */
 export class ArrayHeatmapTracker implements HeatmapTracker {
   private heatmap = new Map<string, number>();
-  private heatmapConfig: HeatmapConfig;
+  private readonly heatmapConfig: HeatmapConfig;
 
   constructor(heatmapConfig: HeatmapConfig) {
     this.heatmapConfig = heatmapConfig;

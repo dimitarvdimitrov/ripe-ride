@@ -1,14 +1,12 @@
 import { HeatmapTracker } from './heatmapTracker';
 import { calculateDistance } from './distance';
-import { LoadedRoute } from './routeLoader';
-
-export type ProcessedRoute = LoadedRoute;
+import { Route } from './routeLoader';
 
 
 /**
  * Process a route and accumulate distances into heatmap tracker
  */
-export function processRoute(route: ProcessedRoute, heatmapTracker: HeatmapTracker): void {
+export function processRoute(route: Route, heatmapTracker: HeatmapTracker): void {
   if (route.points.length < 2) return;
   
   for (let i = 1; i < route.points.length; i++) {
@@ -28,8 +26,7 @@ export function processRoute(route: ProcessedRoute, heatmapTracker: HeatmapTrack
 /**
  * Process multiple routes and accumulate distances into heatmap tracker
  */
-export function processRoutes(routes: ProcessedRoute[], heatmapTracker: HeatmapTracker): void {
-  // Reset heatmap before processing
+export function processRoutes(routes: Route[], heatmapTracker: HeatmapTracker): void {
   heatmapTracker.reset();
   
   for (const route of routes) {
