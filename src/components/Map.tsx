@@ -173,15 +173,16 @@ export default function Map({
               {showHeatmap ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
               Heatmap
             </Button>
-            <Button
-              variant={heatmapMode === 'per-route' ? "accent" : "outline"}
-              size="sm"
-              onClick={() => onHeatmapModeChange(heatmapMode === 'general' ? 'per-route' : 'general')}
-              disabled={heatmapMode === 'per-route' && !route?.routeHeatmap}
-            >
-              <Layers className="h-3 w-3 mr-1" />
-              {heatmapMode === 'general' ? 'Route View' : 'General View'}
-            </Button>
+            {/* per-route heatmap should only be enabled on local dev deployments*/}
+            {/*<Button*/}
+            {/*  variant={heatmapMode === 'per-route' ? "accent" : "outline"}*/}
+            {/*  size="sm"*/}
+            {/*  onClick={() => onHeatmapModeChange(heatmapMode === 'general' ? 'per-route' : 'general')}*/}
+            {/*  disabled={heatmapMode === 'per-route' && !route?.routeHeatmap}*/}
+            {/*>*/}
+            {/*  <Layers className="h-3 w-3 mr-1" />*/}
+            {/*  {heatmapMode === 'general' ? 'Route View' : 'General View'}*/}
+            {/*</Button>*/}
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground min-w-max">Resolution:</span>
               <div className="w-20">
