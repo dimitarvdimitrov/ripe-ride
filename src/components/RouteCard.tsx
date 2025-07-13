@@ -30,16 +30,16 @@ const RouteCard: React.FC<RouteCardProps> = ({
 
       if (normalizedScore < 0.33) {
           return <Badge variant="outline" className={cn("text-xs", 'bg-success/10 text-success border-success/20')}>
-              Tread
+              Ripe
           </Badge>
       } else if (normalizedScore < 0.67) {
-          return <Badge variant="outline" className={cn("text-xs", 'bg-primary/10 text-primary border-primary/20')}>
+          return <Badge variant="outline" className={cn("text-xs", 'bg-emerging-muted/10 text-emerging border-emerging/20')}>
               Budding
           </Badge>
       } else {
           return <Badge variant="outline"
                         className={cn("text-xs", 'bg-destructive/10 text-destructive border-destructive/20')}>
-              Ripe
+              Tread
           </Badge>
       }
   };

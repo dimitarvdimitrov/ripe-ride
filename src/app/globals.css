@@ -32,7 +32,14 @@
   /* Success - Nature Green */
   --color-success: #059669;
   --color-success-foreground: #ffffff;
-  
+
+  /* Emerging - Budding Yellow (Darker Background-Friendly) */
+  --color-emerging: #d1a516;       /* darker yellow, golden mustard */
+  --color-emerging-foreground: #0a0a0a;
+  --color-emerging-light: #fef08a; /* soft yellow highlight */
+  --color-emerging-glow: #facc15;  /* vivid for glowing UI elements */
+  --color-emerging-muted: #e7c967; /* subdued for backgrounds or fills */
+
   --color-destructive: #dc2626;
   --color-destructive-foreground: #ffffff;
   
