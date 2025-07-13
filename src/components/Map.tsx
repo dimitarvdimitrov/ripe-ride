@@ -55,21 +55,21 @@ function cellToLatLngBounds(cellX: number, cellY: number, heatmapConfig: { heatm
 // Get color based on distance density
 function getHeatmapColor(distance: number, maxDistance: number): { color: string, fillColor: string, fillOpacity: number } {
   if (distance === 0) {
-    return { color: 'blue', fillColor: 'blue', fillOpacity: 0.02 };
+    return { color: 'black', fillColor: 'var(--color-accent)', fillOpacity: 0.02 };
   }
   
   const intensity = distance / maxDistance;
   
   if (intensity > 0.8) {
-    return { color: '#d32f2f', fillColor: '#f44336', fillOpacity: 0.6 }; // Dark red
+    return { color: 'var(--color-destructive)', fillColor: 'var(--color-destructive)', fillOpacity: 0.6 }; // High intensity red
   } else if (intensity > 0.6) {
-    return { color: '#f57c00', fillColor: '#ff9800', fillOpacity: 0.5 }; // Orange
+    return { color: 'var(--color-primary)', fillColor: 'var(--color-primary)', fillOpacity: 0.5 }; // Energetic orange
   } else if (intensity > 0.4) {
-    return { color: '#fbc02d', fillColor: '#ffeb3b', fillOpacity: 0.4 }; // Yellow
+    return { color: 'var(--color-emerging)', fillColor: 'var(--color-emerging-light)', fillOpacity: 0.4 }; // Emerging yellow
   } else if (intensity > 0.2) {
-    return { color: '#689f38', fillColor: '#8bc34a', fillOpacity: 0.3 }; // Light green
+    return { color: 'var(--color-success)', fillColor: 'var(--color-success)', fillOpacity: 0.3 }; // Medium green
   } else {
-    return { color: '#388e3c', fillColor: '#4caf50', fillOpacity: 0.2 }; // Green
+    return { color: 'var(--color-success)', fillColor: 'var(--color-success)', fillOpacity: 0.2 }; // Low intensity green
   }
 }
 
