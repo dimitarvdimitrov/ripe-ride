@@ -18,16 +18,15 @@ const Map = dynamic(() => import('@/components/Map'), {
   loading: () => <p>Loading map...</p>
 });
 
-const {HookSetMapCenter} = import('@/components/Map')
+// The HookSetMapCenter is now used directly in the Map component
 
 export default function Home() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('recent');
+  const [activeTab, setActiveTab] = useState<'recent' | 'saved'>('saved');
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [heatmapSizeKm, setHeatmapSizeKm] = useState(1.5);
   const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
-  const [isFirstSync, setIsFirstSync] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number]>([52.3676, 4.9041]);
 
@@ -74,30 +73,7 @@ export default function Home() {
     }
   }, [session, status, router]);
 
-  // Sync routes on first login
-  useEffect(() => {
-    const syncRoutes = async () => {
-      // TODO we need to have this logic in the backend - on the login endpoint.
-      if (session && !isFirstSync) {
-        setIsFirstSync(true);
-        try {
-          console.log('🔄 First login detected, syncing routes...');
-          const response = await fetch('/api/sync-routes', {
-            method: 'POST',
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            console.log(`✅ Synced ${result.syncedCount} routes from Strava`);
-          }
-        } catch (error) {
-          console.error('❌ Failed to sync routes:', error);
-        }
-      }
-    };
-
-    syncRoutes();
-  }, [session, isFirstSync]);
+  // Note: Route sync is handled manually via the sync button in UserProfile
 
   // Debounce values to prevent excessive requests
   const debouncedHeatmapSize = useDebounce(heatmapSizeKm, 100);
@@ -212,7 +188,13 @@ export default function Home() {
               elevationRange={elevationRange}
               onDistanceRangeChange={setDistanceRange}
               onElevationRangeChange={setElevationRange}
-              heatmapAnalysis={heatmapAnalysis}
+              heatmapAnalysis={heatmapAnalysis ? {
+                routesProcessed: heatmapAnalysis.routesProcessed || 0,
+                stats: {
+                  totalCells: heatmapAnalysis.stats.totalCells,
+                  totalDistance: heatmapAnalysis.stats.totalDistance,
+                }
+              } : { routesProcessed: 0, stats: { totalCells: 0, totalDistance: 0 } }}
             />
           </div>
 
