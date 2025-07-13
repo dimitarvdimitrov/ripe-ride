@@ -1,10 +1,16 @@
-# RipeRide 🚧 **Work in Progress**
+# RipeRide
 
-A route planning application designed to help you choose new paths and maximize route diversity.
+**Fresh paths only.**
 
-RipeRide analyzes your cycling/running routes to help you choose paths that go in different directions and cover areas you haven't explored recently. Instead of repeating the same familiar routes, this app encourages exploration by:
+RipeRide connects to your Strava account and helps you pick the most rewarding route to ride next—based on what you’ve recently explored and what’s still ripe for the taking.
 
-- **Visualizing route coverage** across geographical grid squares
-- **Identifying underexplored areas** through density heatmaps  
-- **Comparing recent vs available routes** to find diversity opportunities
-- **Maximizing spatial diversity** in your route selection
+RipeRide ranks your saved routes on a scale from **tread → budding → ripe**, showing which routes you've covered recently and which are ready to ride. Instead of looping the same familiar paths, RipeRide nudges you toward variety and discovery.
+
+![demo-screenshot.png](demo-screenshot.png)
+
+### What it does
+
+* **Analyzes route overlap** from your recent activity history (last 2 weeks)
+* **Visualizes coverage** using a grid-based heatmap of your routes
+* **Ranks your saved routes** based on spatial freshness
+* **Surfaces underused paths** so you can ride what’s ripe, not what’s worn
