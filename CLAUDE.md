@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Path Finder is a Next.js route planning application that analyzes cycling/running routes from Strava to help users choose diverse paths and explore new areas. The app visualizes route coverage using geographical grid-based heatmaps and calculates overlap scores to maximize spatial diversity.
+RipeRide is a Next.js route planning application that analyzes cycling/running routes from Strava to help users choose diverse paths and explore new areas. The app visualizes route coverage using geographical grid-based heatmaps and calculates overlap scores to maximize spatial diversity.
 
 ## Development Commands
 

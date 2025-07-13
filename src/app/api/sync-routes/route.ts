@@ -113,7 +113,7 @@ function convertToGPX(
     .join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="Path Finder - Strava Sync" xmlns="http://www.topografix.com/GPX/1/1">
+<gpx version="1.1" creator="RipeRide - Strava Sync" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
     <name>${name}</name>
     <time>${timestamp}</time>

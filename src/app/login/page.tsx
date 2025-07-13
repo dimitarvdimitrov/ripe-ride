@@ -34,7 +34,7 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Welcome to Path Finder
+            Welcome to RipeRide
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Connect your Strava account to analyze your routes
@@ -70,7 +70,7 @@ export default function LoginPage() {
 
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            By connecting your Strava account, you agree to allow Path Finder to access your activity data for route analysis and visualization.
+            By connecting your Strava account, you agree to allow RipeRide to access your activity data for route analysis and visualization.
           </p>
         </div>
       </div>
