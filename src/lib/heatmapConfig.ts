@@ -26,14 +26,3 @@ export function createHeatmapConfig(
     referencePoint
   };
 }
-
-/**
- * Available heatmap size options for UI
- */
-export const HEATMAP_SIZE_OPTIONS = [
-  { value: 1, label: '1km' },
-  { value: 2, label: '2km' },
-  { value: 5, label: '5km' },
-  { value: 10, label: '10km' },
-  { value: 20, label: '20km' }
-] as const;
