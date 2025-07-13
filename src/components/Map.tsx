@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Eye, EyeOff, Layers, Map as MapIcon } from 'lucide-react';
+import { Eye, EyeOff, Map as MapIcon } from 'lucide-react';
 
 // Fix for default markers in React-Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -151,7 +151,6 @@ export default function Map({
   heatmapSizeKm,
   onHeatmapSizeChange,
   heatmapMode,
-  onHeatmapModeChange,
   setMapCenter,
 }: MapProps) {
   const [showHeatmap, setShowHeatmap] = useState(true);
