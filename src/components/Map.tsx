@@ -1,6 +1,6 @@
 'use client';
 
-import { MapContainer, TileLayer, Polyline, useMap, Rectangle } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, useMap, Rectangle, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useState } from 'react';
 import L from 'leaflet';
@@ -33,6 +33,7 @@ interface MapProps {
   onHeatmapSizeChange: (size: number) => void;
   heatmapMode: 'general' | 'per-route';
   onHeatmapModeChange: (mode: 'general' | 'per-route') => void;
+  setMapCenter: (point: [number, number]) => void;
 }
 
 // Convert heatmap coordinates to lat/lng bounds
@@ -101,6 +102,17 @@ function HeatmapDensityOverlay({ showHeatmap, heatmapAnalysis, heatmapSizeKm }: 
   );
 }
 
+export function HookSetMapCenter({setMapCenter}: { setMapCenter: (center: [number, number]) => void }) {
+  const map = useMapEvents({
+    moveend: () => {
+      const center = map.getCenter();
+      setMapCenter([center.lat, center.lng]);
+    },
+  });
+
+  return null;
+}
+
 // Component to fit map bounds to heatmap analysis area
 function FitBounds({ heatmapAnalysis, heatmapSizeKm }: { heatmapAnalysis: HeatmapAnalysis | null, heatmapSizeKm: number }) {
   const map = useMap();
@@ -139,10 +151,11 @@ export default function Map({
   heatmapSizeKm,
   onHeatmapSizeChange,
   heatmapMode,
-  onHeatmapModeChange
+  onHeatmapModeChange,
+  setMapCenter,
 }: MapProps) {
   const [showHeatmap, setShowHeatmap] = useState(true);
-  
+
   return (
     <Card className="h-full shadow-medium border-border/50 flex flex-col">
       <CardHeader className="pb-3">
@@ -175,7 +188,7 @@ export default function Map({
                 <Slider
                   value={[heatmapSizeKm]}
                   onValueChange={(value) => onHeatmapSizeChange(value[0])}
-                  max={20}
+                  max={5}
                   min={0.5}
                   step={0.5}
                   className="w-full"
@@ -221,6 +234,7 @@ export default function Map({
             
             {/* Fit bounds to heatmap analysis area */}
             <FitBounds heatmapAnalysis={heatmapAnalysis || null} heatmapSizeKm={heatmapSizeKm} />
+            <HookSetMapCenter setMapCenter={setMapCenter} />
           </MapContainer>
         </div>
       </CardContent>

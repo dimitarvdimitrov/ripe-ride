@@ -18,6 +18,7 @@ const Map = dynamic(() => import('@/components/Map'), {
   loading: () => <p>Loading map...</p>
 });
 
+const {HookSetMapCenter} = import('@/components/Map')
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -28,15 +29,18 @@ export default function Home() {
   const [heatmapMode, setHeatmapMode] = useState<'general' | 'per-route'>('general');
   const [isFirstSync, setIsFirstSync] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  
+  const [mapCenter, setMapCenter] = useState<[number, number]>([52.3676, 4.9041]);
+
   // Filter states
   const [distanceRange, setDistanceRange] = useState<[number, number]>([0, 200]);
   const [elevationRange, setElevationRange] = useState<[number, number]>([0, 2000]);
 
+
+
   // Manual sync function
   const handleManualSync = async () => {
     if (!session || isSyncing) return;
-    
+
     setIsSyncing(true);
     try {
       console.log('🔄 Manual sync triggered...');
@@ -74,7 +78,6 @@ export default function Home() {
   useEffect(() => {
     const syncRoutes = async () => {
       // TODO we need to have this logic in the backend - on the login endpoint.
-      // TODO we need to be able to call sync-routes via a button too on the main page instead of using the react state to control it
       if (session && !isFirstSync) {
         setIsFirstSync(true);
         try {
@@ -100,7 +103,7 @@ export default function Home() {
   const debouncedHeatmapSize = useDebounce(heatmapSizeKm, 100);
   const debouncedDistanceRange = useDebounce(distanceRange, 100);
   const debouncedElevationRange = useDebounce(elevationRange, 100);
-  
+
   // Fetch routes using React Query with debounced filters
   const {
     data: recentRoutes = [],
@@ -112,7 +115,9 @@ export default function Home() {
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
-    debouncedElevationRange[1]
+    debouncedElevationRange[1],
+    mapCenter[0],
+    mapCenter[1],
   );
 
   const {
@@ -125,7 +130,9 @@ export default function Home() {
     debouncedDistanceRange[0],
     debouncedDistanceRange[1],
     debouncedElevationRange[0],
-    debouncedElevationRange[1]
+    debouncedElevationRange[1],
+    mapCenter[0],
+    mapCenter[1],
   );
 
   // Use React Query for heatmap analysis - always use recent routes for general heatmap display
@@ -169,7 +176,7 @@ export default function Home() {
   const overlapScores = routesWithScores.map(route => route.overlapScore!);
   const minOverlapScore = overlapScores.length > 0 ? Math.min(...overlapScores) : 0;
   const maxOverlapScore = overlapScores.length > 0 ? Math.max(...overlapScores) : 1;
-  
+
 
 
   return (
@@ -178,7 +185,7 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-full lg:h-full">
           {/* Left Sidebar */}
           <div className="lg:col-span-1 space-y-6 flex flex-col h-auto lg:h-full overflow-hidden">
-            <UserProfile 
+            <UserProfile
               user={{
                 name: session.user?.name || 'Strava User',
                 avatar: session.user?.image ?? undefined,
@@ -222,7 +229,7 @@ export default function Home() {
                       </div>
                     </div>
                   )}
-                  
+
                   {(heatmapError || recentError || savedError) && (
                     <div className="mb-4 bg-red-50 border border-red-200 rounded-md p-3">
                       <div className="text-xs text-red-800">
@@ -256,7 +263,7 @@ export default function Home() {
                           ))}
                         </>
                       )}
-                      
+
                       {activeTab === 'saved' && (
                         <>
                           {validSavedRoutes.map((route) => (
@@ -294,10 +301,10 @@ export default function Home() {
 
           {/* Map Area */}
           <div className="lg:col-span-2 h-96 lg:h-full overflow-hidden">
-            <Map 
-              center={selectedRoute && selectedRoute.points.length > 0 
-                ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon] 
-                : [52.3676, 4.9041]} 
+            <Map
+              center={selectedRoute && selectedRoute.points.length > 0
+                ? [selectedRoute.points[0].lat, selectedRoute.points[0].lon]
+                : mapCenter}
               zoom={13}
               route={selectedRoute}
               heatmapAnalysis={currentHeatmapAnalysis}
@@ -305,6 +312,7 @@ export default function Home() {
               onHeatmapSizeChange={setHeatmapSizeKm}
               heatmapMode={heatmapMode}
               onHeatmapModeChange={setHeatmapMode}
+              setMapCenter={setMapCenter}
             />
           </div>
         </div>

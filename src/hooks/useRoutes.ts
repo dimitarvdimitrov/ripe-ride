@@ -22,6 +22,8 @@ async function fetchRoutes(
   distanceMax: number,
   elevationMin: number,
   elevationMax: number,
+  centerLat: number,
+  centerLng: number,
   signal?: AbortSignal
 ): Promise<Route[]> {
   const params = new URLSearchParams({
@@ -30,7 +32,9 @@ async function fetchRoutes(
     distanceMin: distanceMin.toString(),
     distanceMax: distanceMax.toString(),
     elevationMin: elevationMin.toString(),
-    elevationMax: elevationMax.toString()
+    elevationMax: elevationMax.toString(),
+    centerLat: centerLat.toString(),
+    centerLng: centerLng.toString(),
   });
 
   const response = await fetch(`/api/routes?${params}`, { signal });
@@ -49,11 +53,13 @@ export function useRoutes(
   distanceMax: number,
   elevationMin: number,
   elevationMax: number,
+  centerLat: number,
+  centerLng: number,
   enabled: boolean = true
 ) {
   return useQuery({
-    queryKey: ['routes', folder, heatmapSizeKm, distanceMin, distanceMax, elevationMin, elevationMax],
-    queryFn: ({ signal }) => fetchRoutes(folder, heatmapSizeKm, distanceMin, distanceMax, elevationMin, elevationMax, signal),
+    queryKey: ['routes', folder, heatmapSizeKm, distanceMin, distanceMax, elevationMin, elevationMax, centerLat, centerLng],
+    queryFn: ({ signal }) => fetchRoutes(folder, heatmapSizeKm, distanceMin, distanceMax, elevationMin, elevationMax, centerLat, centerLng, signal),
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
