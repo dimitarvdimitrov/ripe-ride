@@ -47,15 +47,23 @@ export async function GET(request: NextRequest) {
         const routes = loadedRoutes.map(route => {
             const maxElevation = route.points.length > 0 ? Math.max(...route.points.map(p => p.elevation || 0)) : 0;
 
-            return {
+            const result: any = {
                 id: route.id,
                 name: route.name,
                 distance: route.error ? null : route.totalDistance, // Distance in meters, null if error
                 elevation: route.error ? null : maxElevation, // Elevation in meters, null if error
                 points: route.points,
-                lastDone: folder === 'recent' ? getRandomRecentDate() : undefined,
                 error: route.error
             };
+
+            // Add appropriate date field based on folder
+            if (folder === 'recent') {
+                result.lastDone = route.date.toISOString();
+            } else if (folder === 'saved') {
+                result.savedOn = route.date.toISOString();
+            }
+
+            return result;
         });
 
         // Calculate overlap scores for saved routes
@@ -129,10 +137,6 @@ export async function GET(request: NextRequest) {
 }
 
 
-function getRandomRecentDate(): string {
-    const dates = ['2 days ago', '1 week ago', '3 days ago', '5 days ago', '1 day ago', '4 days ago'];
-    return dates[Math.floor(Math.random() * dates.length)];
-}
 
 // Generate heatmap for a single route
 function generateSingleRouteHeatmap(

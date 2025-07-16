@@ -18,6 +18,7 @@ export interface Route {
   points: RoutePoint[];
   totalDistance: number;
   folder: 'recent' | 'saved';
+  date: Date;
   error?: string;
 }
 
@@ -49,6 +50,7 @@ export interface RouteLoader {
 async function parseGPXWithXML(gpxData: string): Promise<{
   points: RoutePoint[];
   name?: string;
+  date?: Date;
 }> {
   const { JSDOM } = await import('jsdom');
   const dom = new JSDOM();
@@ -65,6 +67,9 @@ async function parseGPXWithXML(gpxData: string): Promise<{
     const nameElement = xmlDoc.querySelector('trk > name') || xmlDoc.querySelector('metadata > name');
     const name = nameElement?.textContent || undefined;
     
+    const timeElement = xmlDoc.querySelector('metadata > time');
+    const date = timeElement?.textContent ? new Date(timeElement.textContent) : undefined;
+    
     const trkptElements = xmlDoc.querySelectorAll('trkpt');
     const points: RoutePoint[] = [];
     
@@ -80,10 +85,10 @@ async function parseGPXWithXML(gpxData: string): Promise<{
       }
     });
     
-    return { points, name };
+    return { points, name, date };
   } catch (error) {
     console.error('XML parsing error:', error);
-    return { points: [] };
+    return { points: [], date: undefined };
   }
 }
 
@@ -151,6 +156,9 @@ export class FileSystemRouteLoader implements RouteLoader {
 
               console.log(`📍 Found ${points.length} points in ${file}`);
 
+              // Handle missing date at the folder level
+              const routeDate = parseResult.date || new Date();
+
               if (points.length === 0) {
                 return {
                   id: file.replace('.gpx', ''),
@@ -158,6 +166,7 @@ export class FileSystemRouteLoader implements RouteLoader {
                   points: [],
                   totalDistance: 0,
                   folder,
+                  date: routeDate,
                   error: 'No track points found in GPX file'
                 };
               }
@@ -170,7 +179,8 @@ export class FileSystemRouteLoader implements RouteLoader {
                 name: routeName,
                 points,
                 totalDistance,
-                folder
+                folder,
+                date: routeDate
               };
             } catch (error: unknown) {
               console.error(`❌ Error parsing ${file}:`, error);
@@ -180,6 +190,7 @@ export class FileSystemRouteLoader implements RouteLoader {
                 points: [],
                 totalDistance: 0,
                 folder,
+                date: new Date(), // Fallback to current date on error
                 error: `Failed to parse GPX: ${error instanceof Error ? error.message : 'Unknown error'}`
               };
             }
