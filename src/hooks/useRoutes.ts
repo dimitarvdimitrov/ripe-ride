@@ -8,6 +8,7 @@ export interface Route {
   distance?: number; // Distance in meters, null if error
   elevation?: number; // Max elevation in meters, null if error; // TODO actually calculate elevation
   lastDone?: string;
+  savedOn?: string;
   points: { lat: number; lon: number; elevation?: number }[];
   error?: string;
   overlapScore?: number;

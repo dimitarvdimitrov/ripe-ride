@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         const routes = loadedRoutes.map(route => {
             const maxElevation = route.points.length > 0 ? Math.max(...route.points.map(p => p.elevation || 0)) : 0;
 
-            const result: any = {
+            const result: Route = {
                 id: route.id,
                 name: route.name,
                 distance: route.error ? null : route.totalDistance, // Distance in meters, null if error
@@ -81,21 +81,11 @@ export async function GET(request: NextRequest) {
             const validRoutesWithScores = await Promise.all(
                 validRoutes.map(async (route) => {
                 try {
-                    // Convert API route back to LoadedRoute format for processing
-                    const loadedRoute: Route = {
-                        id: route.id,
-                        name: route.name,
-                        points: route.points,
-                        totalDistance: route.distance as number, // Distance is now a number in meters
-                        folder: folder as 'recent' | 'saved',
-                        error: route.error
-                    };
-
                     const {
                         score,
                         routeHeatmap,
                         routeHeatmapTracker
-                    } = await calculateOverlapScore(loadedRoute, heatmapConfig, allRoutesHeatmap);
+                    } = await calculateOverlapScore(route, heatmapConfig, allRoutesHeatmap);
 
                     const routeHeatmapAnalysis = {
                         heatmapData: routeHeatmap,

@@ -29,7 +29,7 @@ export interface RouteFilters {
   elevationMax?: number;
   centerLat?: number;
   centerLng?: number;
-  maxDistanceKm?: number;
+  maxDistanceKm?: number; // TODO rename to maxDistanceFromCenter
 }
 
 export interface RouteLoader {

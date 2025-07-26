@@ -83,7 +83,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
               {route.name}
             </h3>
             <div className="flex items-center gap-2 flex-wrap">
-              {route.overlapScore && getDiversityType(route.overlapScore)}
+              {route.overlapScore !== undefined && getDiversityType(route.overlapScore)}
               {route.lastDone && (
                 <Badge variant="secondary" className="text-xs px-2 py-1">
                   Recent
@@ -114,7 +114,7 @@ const RouteCard: React.FC<RouteCardProps> = ({
           <div className="flex flex-col items-center text-center">
             <Blend className="h-4 w-4 text-muted-foreground mb-1" />
             <span className="text-sm font-medium text-foreground">
-              {route.overlapScore ? `${(route.overlapScore).toFixed()}` : '0.0'}
+              {route.overlapScore !== undefined ? `${(route.overlapScore).toFixed()}` : '0.0'}
             </span>
             <span className="text-xs text-muted-foreground">overlap score</span>
           </div>
