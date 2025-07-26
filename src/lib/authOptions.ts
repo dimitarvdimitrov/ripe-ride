@@ -1,9 +1,14 @@
 import {NextAuthOptions} from "next-auth";
 import StravaProvider from "next-auth/providers/strava";
-import {JWT} from "next-auth/jwt";
+import {SupabaseAdapter} from "@auth/supabase-adapter";
+import {supabaseAdmin} from "./supabase";
 
 export const authOptions: NextAuthOptions = {
     debug: process.env.NODE_ENV === 'development',
+    adapter: SupabaseAdapter({
+        url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    }),
     providers: [
         StravaProvider({
             clientId: process.env.STRAVA_CLIENT_ID!,
@@ -17,27 +22,69 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        async jwt({ token, account }) {
-            // Persist the OAuth access_token and refresh_token to the token right after signin
-            if (account) {
-                token.accessToken = account.access_token
-                token.refreshToken = account.refresh_token
-                token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : 0
-            }
+        async signIn({ user, account }) {
+            if (account?.provider === 'strava' && account.access_token) {
+                try {
+                    // Store Strava tokens in our custom table
+                    await supabaseAdmin
+                        .from('strava_tokens')
+                        .upsert({
+                            user_id: user.id,
+                            access_token: account.access_token,
+                            refresh_token: account.refresh_token || '',
+                            expires_at: new Date(account.expires_at! * 1000).toISOString(),
+                            scope: account.scope || 'read,activity:read_all,profile:read_all'
+                        });
 
-            // Return previous token if the access token has not expired yet
-            if (Date.now() < (token.accessTokenExpires as number)) {
-                return token
+                    // Also store/update user in our custom users table with Strava ID
+                    await supabaseAdmin
+                        .from('users')
+                        .upsert({
+                            id: user.id,
+                            strava_id: account.providerAccountId
+                        });
+                } catch (error) {
+                    console.error('Error storing Strava tokens:', error);
+                    // Don't block sign in if token storage fails
+                }
             }
-
-            // Access token has expired, try to update it
-            return refreshAccessToken(token)
+            return true;
         },
-        async session({ session, token }) {
-            session.user.id = token.sub!
-            session.accessToken = token.accessToken
-            session.error = token.error
-            return session
+        async session({ session, user }) {
+            // Get the latest Strava tokens from database
+            try {
+                const { data: tokens } = await supabaseAdmin
+                    .from('strava_tokens')
+                    .select('access_token, expires_at, refresh_token')
+                    .eq('user_id', user.id)
+                    .single();
+
+                if (tokens) {
+                    // Check if token needs refresh
+                    const now = new Date();
+                    const expiresAt = new Date(tokens.expires_at);
+                    
+                    if (now >= expiresAt) {
+                        // Token expired, try to refresh
+                        const refreshedTokens = await refreshAccessToken({
+                            userId: user.id,
+                            refreshToken: tokens.refresh_token
+                        });
+                        
+                        if (refreshedTokens) {
+                            session.accessToken = refreshedTokens.access_token;
+                        } else {
+                            session.error = 'RefreshAccessTokenError';
+                        }
+                    } else {
+                        session.accessToken = tokens.access_token;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading Strava tokens:', error);
+            }
+
+            return session;
         },
     },
     pages: {
@@ -45,7 +92,7 @@ export const authOptions: NextAuthOptions = {
     },
 }
 
-async function refreshAccessToken(token: JWT) {
+async function refreshAccessToken({ userId, refreshToken }: { userId: string, refreshToken: string }) {
     try {
         const response = await fetch('https://www.strava.com/oauth/token', {
             method: 'POST',
@@ -55,7 +102,7 @@ async function refreshAccessToken(token: JWT) {
             body: JSON.stringify({
                 client_id: process.env.STRAVA_CLIENT_ID,
                 client_secret: process.env.STRAVA_CLIENT_SECRET,
-                refresh_token: token.refreshToken,
+                refresh_token: refreshToken,
                 grant_type: 'refresh_token',
             }),
         })
@@ -66,18 +113,25 @@ async function refreshAccessToken(token: JWT) {
             throw refreshedTokens
         }
 
-        return {
-            ...token,
-            accessToken: refreshedTokens.access_token,
-            accessTokenExpires: Date.now() + refreshedTokens.expires_in * 1000,
-            refreshToken: refreshedTokens.refresh_token ?? token.refreshToken,
-        }
-    } catch (error) {
-        console.error('Error refreshing access token:', error)
+        // Update tokens in database
+        const expiresAt = new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString();
+        
+        await supabaseAdmin
+            .from('strava_tokens')
+            .update({
+                access_token: refreshedTokens.access_token,
+                refresh_token: refreshedTokens.refresh_token ?? refreshToken,
+                expires_at: expiresAt
+            })
+            .eq('user_id', userId);
 
         return {
-            ...token,
-            error: 'RefreshAccessTokenError',
-        }
+            access_token: refreshedTokens.access_token,
+            refresh_token: refreshedTokens.refresh_token ?? refreshToken,
+            expires_at: expiresAt
+        };
+    } catch (error) {
+        console.error('Error refreshing access token:', error)
+        return null;
     }
 }
