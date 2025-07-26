@@ -71,6 +71,16 @@ export function useRoutes(
           return scoreA - scoreB;
         });
       }
+      
+      // Sort recent routes by date (newest first)
+      if (folder === 'recent') {
+        return [...data].sort((a, b) => {
+          const dateA = a.lastDone ? new Date(a.lastDone).getTime() : 0;
+          const dateB = b.lastDone ? new Date(b.lastDone).getTime() : 0;
+          return dateB - dateA; // Newest first
+        });
+      }
+      
       return data;
     }
   });
