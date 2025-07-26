@@ -102,6 +102,8 @@ export async function GET(request: NextRequest) {
                         stats: {
                             totalCells: routeHeatmapTracker.getCellCount(),
                             totalDistance: routeHeatmapTracker.getTotalDistance(),
+                            averageDistance: routeHeatmapTracker.getAverageDistance(),
+                            maxDistance: routeHeatmapTracker.getMaxDistance()
                         },
                         routesProcessed: 1
                     };

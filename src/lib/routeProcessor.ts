@@ -40,9 +40,13 @@ export function processRoutes(routes: Route[], heatmapTracker: HeatmapTracker): 
 export function getHeatmapStats(heatmapTracker: HeatmapTracker): {
   totalCells: number;
   totalDistance: number;
+  averageDistance: number;
+  maxDistance: number;
 } {
   return {
     totalCells: heatmapTracker.getCellCount(),
     totalDistance: heatmapTracker.getTotalDistance(),
+    averageDistance: heatmapTracker.getAverageDistance(),
+    maxDistance: heatmapTracker.getMaxDistance()
   };
 }
