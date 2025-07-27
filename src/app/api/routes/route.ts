@@ -1,11 +1,20 @@
 import {NextRequest, NextResponse} from 'next/server';
 import {ArrayHeatmapTracker, type HeatmapCell, type HeatmapTracker} from '@/lib/heatmapTracker';
 import {DEFAULT_REFERENCE_POINT, type HeatmapConfig} from '@/lib/heatmapConfig';
-import {FileSystemRouteLoader, type Route} from '@/lib/routeLoader';
+import {DatabaseRouteLoader} from '@/lib/databaseRouteLoader';
+import {type Route as LoadedRoute} from '@/lib/routeLoader';
+import {type Route as ApiRoute} from '@/hooks/useRoutes';
 import {processRoute, processRoutes} from '@/lib/routeProcessor';
+import {getCurrentUser} from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
     try {
+        // Get current user for database queries
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const {searchParams} = new URL(request.url);
         const folder = searchParams.get('folder');
 
@@ -31,8 +40,8 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({error: 'Invalid folder parameter'}, {status: 400});
         }
 
-        // Use the route loader to load routes with filters
-        const routeLoader = new FileSystemRouteLoader();
+        // Use the database route loader to load routes with filters
+        const routeLoader = new DatabaseRouteLoader(user.id);
         const loadedRoutes = await routeLoader.loadFromFolder(folder, {
             distanceMin,
             distanceMax,
@@ -47,11 +56,11 @@ export async function GET(request: NextRequest) {
         const routes = loadedRoutes.map(route => {
             const maxElevation = route.points.length > 0 ? Math.max(...route.points.map(p => p.elevation || 0)) : 0;
 
-            const result: Route = {
+            const result: ApiRoute = {
                 id: route.id,
                 name: route.name,
-                distance: route.error ? null : route.totalDistance, // Distance in meters, null if error
-                elevation: route.error ? null : maxElevation, // Elevation in meters, null if error
+                distance: route.error ? undefined : route.totalDistance, // Distance in meters, undefined if error
+                elevation: route.error ? undefined : maxElevation, // Elevation in meters, undefined if error
                 points: route.points,
                 error: route.error
             };
@@ -71,7 +80,7 @@ export async function GET(request: NextRequest) {
             console.log(`📊 Calculating overlap scores for ${routes.length} saved routes...`);
 
             // Generate the comprehensive heatmap once for all saved routes
-            const allRoutesHeatmap = await generateRecentRoutesHeatmap(heatmapConfig);
+            const allRoutesHeatmap = await generateRecentRoutesHeatmap(heatmapConfig, user.id);
 
             // Separate routes with and without errors using functional approach
             const validRoutes = routes.filter(route => !route.error && route.points.length > 0);
@@ -132,25 +141,36 @@ export async function GET(request: NextRequest) {
 
 // Generate heatmap for a single route
 function generateSingleRouteHeatmap(
-    route: Route,
+    route: ApiRoute,
     heatmapConfig: HeatmapConfig
 ): HeatmapTracker {
     const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
+    // Convert ApiRoute to LoadedRoute for processing
+    const loadedRoute: LoadedRoute = {
+        id: route.id,
+        name: route.name,
+        points: route.points,
+        totalDistance: route.distance || 0,
+        folder: 'saved', // Default, not used in processing
+        date: new Date(), // Default, not used in processing
+        error: route.error
+    };
+
     // Process the route using the route processor
-    processRoute(route, heatmapTracker);
+    processRoute(loadedRoute, heatmapTracker);
 
     return heatmapTracker;
 }
 
 // Load and generate heatmap for all recent routes
 // TODO generate this once and cache it with some TTL; regenerate when syncing with strava
-async function generateRecentRoutesHeatmap(heatmapConfig: HeatmapConfig): Promise<HeatmapTracker> {
+async function generateRecentRoutesHeatmap(heatmapConfig: HeatmapConfig, userId: string): Promise<HeatmapTracker> {
     try {
         const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
-        // Load all recent routes using the route loader (no filters for heatmap generation)
-        const recentRoutes = await new FileSystemRouteLoader().loadFromFolder('recent');
+        // Load all recent routes using the database route loader (no filters for heatmap generation)
+        const recentRoutes = await new DatabaseRouteLoader(userId).loadFromFolder('recent');
 
         processRoutes(recentRoutes, heatmapTracker);
 
@@ -198,7 +218,7 @@ function calculateActualOverlapScore(
 
 // Calculate overlap score using proper heatmap analysis
 async function calculateOverlapScore(
-    route: Route,
+    route: ApiRoute,
     heatmapConfig: HeatmapConfig,
     allRoutesHeatmap: HeatmapTracker
 ): Promise<{ score: number; routeHeatmap: HeatmapCell[]; routeHeatmapTracker: HeatmapTracker }> {

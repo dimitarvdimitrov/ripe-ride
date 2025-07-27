@@ -2,10 +2,17 @@ import {NextRequest, NextResponse} from 'next/server';
 import {ArrayHeatmapTracker} from '@/lib/heatmapTracker';
 import {getHeatmapStats, processRoutes} from '@/lib/routeProcessor';
 import {createHeatmapConfig} from '@/lib/heatmapConfig';
-import {FileSystemRouteLoader} from "@/lib/routeLoader";
+import {DatabaseRouteLoader} from '@/lib/databaseRouteLoader';
+import {getCurrentUser} from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
+    // Get current user for database queries
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const folder = searchParams.get('folder') || 'recent';
 
@@ -29,7 +36,7 @@ export async function GET(request: NextRequest) {
     const heatmapTracker = new ArrayHeatmapTracker(heatmapConfig);
 
     try {
-      const routes = await new FileSystemRouteLoader().loadFromFolder('recent')
+      const routes = await new DatabaseRouteLoader(user.id).loadFromFolder(folder as 'recent' | 'saved')
 
       // Process routes and accumulate heatmap data
       processRoutes(routes, heatmapTracker);
