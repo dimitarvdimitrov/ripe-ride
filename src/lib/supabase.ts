@@ -16,6 +16,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 })
 
 // Database types
+// TODO get claude to explain why we need this
 export interface Database {
   public: {
     Tables: {
