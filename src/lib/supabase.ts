@@ -27,16 +27,12 @@ export interface Database {
           updated_at: string
         }
         Insert: {
-          id?: string
+          id: string
           strava_id?: string | null
-          created_at?: string
-          updated_at?: string
         }
         Update: {
-          id?: string
+          id: string
           strava_id?: string | null
-          created_at?: string
-          updated_at?: string
         }
       }
       strava_tokens: {
@@ -54,7 +50,6 @@ export interface Database {
           refresh_token: string
           expires_at: string
           scope?: string | null
-          created_at?: string
         }
         Update: {
           user_id?: string
@@ -62,7 +57,6 @@ export interface Database {
           refresh_token?: string
           expires_at?: string
           scope?: string | null
-          created_at?: string
         }
       }
       routes: {
@@ -74,6 +68,7 @@ export interface Database {
           elevation_meters: number | null
           gpx_file_url: string | null
           created_at: string
+          // TODO add strava ID as well so we can link to the route
         }
         Insert: {
           id?: string
@@ -82,7 +77,6 @@ export interface Database {
           distance_meters?: number | null
           elevation_meters?: number | null
           gpx_file_url?: string | null
-          created_at?: string
         }
         Update: {
           id?: string
@@ -91,7 +85,6 @@ export interface Database {
           distance_meters?: number | null
           elevation_meters?: number | null
           gpx_file_url?: string | null
-          created_at?: string
         }
       }
       activities: {

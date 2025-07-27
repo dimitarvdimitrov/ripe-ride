@@ -1,22 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import path from 'path';
 import { StravaAPIClient, decodePolyline } from '@/lib/strava';
-
-// Import the auth options from the NextAuth route
-import { authOptions } from '@/lib/authOptions';
+import { getCurrentUser } from '@/lib/auth';
+import { supabaseAdmin } from '@/lib/supabase';
+import { uploadGpxFile } from '@/lib/storage';
 
 export async function POST() {
   try {
-    const session = await getServerSession(authOptions);
-
-    // TODO we need to store the session information and strava access token somewhere
-    if (!session || !session.accessToken) {
+    // Get current user and validate authentication
+    const user = await getCurrentUser();
+    if (!user || !user.accessToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const stravaClient = new StravaAPIClient(session.accessToken as string);
+    const stravaClient = new StravaAPIClient(user.accessToken);
     
     console.log('📡 Fetching routes from Strava...');
     
@@ -30,41 +26,59 @@ export async function POST() {
 
     console.log(`📊 Found ${activities.length} recent activities and ${routes.length} routes`);
 
-    // Ensure directories exist
-    const recentDir = path.join(process.cwd(), 'recent');
-    const savedDir = path.join(process.cwd(), 'saved');
-    
-    if (!existsSync(recentDir)) {
-      mkdirSync(recentDir, { recursive: true });
-    }
-    if (!existsSync(savedDir)) {
-      mkdirSync(savedDir, { recursive: true });
-    }
-
     let syncedCount = 0;
+    const errors: string[] = [];
 
-    // Process activities (save to recent folder)
+    // Process activities (save to database and storage)
     for (const activity of activities.filter((activity) => activity?.map?.summary_polyline)) {
-      const points = decodePolyline(activity.map.summary_polyline);
+      try {
+        const points = decodePolyline(activity.map.summary_polyline);
 
-      if (points.length > 0) {
-        const gpxContent = convertToGPX(
-            activity.name,
-            points,
-            activity.start_date_local
-        );
+        if (points.length > 0) {
+          const gpxContent = convertToGPX(
+              activity.name,
+              points,
+              activity.start_date_local
+          );
 
-        const filename = `strava-activity-${activity.id}.gpx`;
-        const filepath = path.join(recentDir, filename);
-        console.log(`wrote file at ${filepath}`);
+          const filename = `strava-activity-${activity.id}.gpx`;
+          
+          // Upload GPX to Supabase Storage
+          const uploadResult = await uploadGpxFile(user.id, 'activities', filename, gpxContent);
+          
+          if (uploadResult) {
+            // Calculate distance (simple estimation)
+            const distance = estimateDistance(points);
+            
+            // Store activity metadata in database
+            await supabaseAdmin
+              .from('activities')
+              .upsert({
+                id: `activity-${activity.id}`,
+                strava_activity_id: activity.id.toString(),
+                user_id: user.id,
+                name: activity.name,
+                distance_meters: distance,
+                elevation_meters: activity.total_elevation_gain || null,
+                activity_date: activity.start_date_local,
+                gpx_file_url: uploadResult.publicUrl
+              });
 
-        writeFileSync(filepath, gpxContent);
-        syncedCount++;
+            console.log(`✅ Synced activity: ${activity.name}`);
+            syncedCount++;
+          } else {
+            errors.push(`Failed to upload GPX for activity ${activity.id}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing activity ${activity.id}:`, error);
+        errors.push(`Error processing activity ${activity.id}: ${error}`);
       }
     }
 
-    // Process routes (save to saved folder)
+    // Process routes (save to database and storage)
     for (const route of routes.filter((route) => route?.map?.summary_polyline)) {
+      try {
         const points = decodePolyline(route.map.summary_polyline);
 
         if (points.length > 0) {
@@ -75,11 +89,35 @@ export async function POST() {
           );
 
           const filename = `strava-route-${route.id}.gpx`;
-          const filepath = path.join(savedDir, filename);
-          console.log(`wrote file at ${filepath}`);
+          
+          // Upload GPX to Supabase Storage
+          const uploadResult = await uploadGpxFile(user.id, 'routes', filename, gpxContent);
+          
+          if (uploadResult) {
+            // Calculate distance (simple estimation)
+            const distance = estimateDistance(points);
+            
+            // Store route metadata in database
+            await supabaseAdmin
+              .from('routes')
+              .upsert({
+                id: `route-${route.id}`,
+                user_id: user.id,
+                name: route.name,
+                distance_meters: distance,
+                elevation_meters: null, // Routes don't have elevation data from Strava API
+                gpx_file_url: uploadResult.publicUrl
+              });
 
-          writeFileSync(filepath, gpxContent);
-          syncedCount++;
+            console.log(`✅ Synced route: ${route.name}`);
+            syncedCount++;
+          } else {
+            errors.push(`Failed to upload GPX for route ${route.id}`);
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing route ${route.id}:`, error);
+        errors.push(`Error processing route ${route.id}: ${error}`);
       }
     }
 
@@ -90,6 +128,7 @@ export async function POST() {
       syncedCount,
       activities: activities.length,
       routes: routes.length,
+      errors: errors.length > 0 ? errors : undefined
     });
 
   } catch (error) {
@@ -126,4 +165,29 @@ ${trackPoints}
     </trkseg>
   </trk>
 </gpx>`;
+}
+
+function estimateDistance(points: Array<{ lat: number; lon: number }>): number {
+  if (points.length < 2) return 0;
+  
+  let totalDistance = 0;
+  
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    
+    // Haversine formula for distance calculation
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (curr.lat - prev.lat) * Math.PI / 180;
+    const dLon = (curr.lon - prev.lon) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(prev.lat * Math.PI / 180) * Math.cos(curr.lat * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+    
+    totalDistance += distance;
+  }
+  
+  return Math.round(totalDistance);
 }
