@@ -29,6 +29,7 @@ export async function POST() {
     let syncedCount = 0;
     const errors: string[] = [];
 
+    // TODO dimitarvdimitrov process the activites and routes in two functions
     // Process activities (save to database and storage)
     for (const activity of activities.filter((activity) => activity?.map?.summary_polyline)) {
       try {
