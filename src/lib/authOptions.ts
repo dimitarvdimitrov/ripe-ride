@@ -9,6 +9,17 @@ export const authOptions: NextAuthOptions = {
         url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
         secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
     }),
+    logger: {
+        error(code, metadata) {
+            console.error('[NextAuth Error]', code, metadata);
+        },
+        warn(code) {
+            console.warn('[NextAuth Warning]', code);
+        },
+        debug(code, metadata) {
+            console.log('[NextAuth Debug]', code, metadata);
+        }
+    },
     providers: [
         StravaProvider({
             clientId: process.env.STRAVA_CLIENT_ID!,
@@ -26,7 +37,7 @@ export const authOptions: NextAuthOptions = {
             if (account?.provider === 'strava' && account.access_token) {
                 try {
                     // Store Strava tokens in our custom table
-                    await supabaseAdmin
+                    const { error: tokensError } = await supabaseAdmin
                         .from('strava_tokens')
                         .upsert({
                             user_id: user.id,
@@ -36,15 +47,23 @@ export const authOptions: NextAuthOptions = {
                             scope: account.scope || 'read,activity:read_all,profile:read_all'
                         });
 
+                    if (tokensError) {
+                        console.error('[NextAuth] Error storing Strava tokens:', tokensError);
+                    }
+
                     // Also store/update user in our custom users table with Strava ID
-                    await supabaseAdmin
+                    const { error: userError } = await supabaseAdmin
                         .from('users')
                         .upsert({
                             id: user.id,
                             strava_id: account.providerAccountId
                         });
+
+                    if (userError) {
+                        console.error('[NextAuth] Error storing user:', userError);
+                    }
                 } catch (error) {
-                    console.error('Error storing Strava tokens:', error);
+                    console.error('[NextAuth] Exception in signIn callback:', error);
                     // Don't block sign in if token storage fails
                 }
             }
@@ -53,13 +72,15 @@ export const authOptions: NextAuthOptions = {
         async session({ session, user }) {
             // Get the latest Strava tokens from database
             try {
-                const { data: tokens } = await supabaseAdmin
+                const { data: tokens, error: tokensError } = await supabaseAdmin
                     .from('strava_tokens')
                     .select('access_token, expires_at, refresh_token')
                     .eq('user_id', user.id)
                     .single();
 
-                if (tokens) {
+                if (tokensError) {
+                    console.error('[NextAuth] Error loading Strava tokens:', tokensError);
+                } else if (tokens) {
                     // Check if token needs refresh
                     const now = new Date();
                     const expiresAt = new Date(tokens.expires_at);
@@ -74,6 +95,7 @@ export const authOptions: NextAuthOptions = {
                         if (refreshedTokens) {
                             session.accessToken = refreshedTokens.access_token;
                         } else {
+                            console.error('[NextAuth] Failed to refresh tokens');
                             session.error = 'RefreshAccessTokenError';
                         }
                     } else {
@@ -81,7 +103,7 @@ export const authOptions: NextAuthOptions = {
                     }
                 }
             } catch (error) {
-                console.error('Error loading Strava tokens:', error);
+                console.error('[NextAuth] Exception in session callback:', error);
             }
 
             return session;

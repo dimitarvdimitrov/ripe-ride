@@ -15,6 +15,33 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
+// Test Supabase connection on startup
+export async function testSupabaseConnection() {
+  console.log('[Supabase] Testing connection...');
+  console.log('[Supabase] URL:', supabaseUrl);
+  console.log('[Supabase] Service key present:', !!supabaseServiceKey);
+  console.log('[Supabase] Anon key present:', !!supabaseAnonKey);
+  
+  try {
+    // Test basic connection with a simple query
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.error('[Supabase] Connection test failed:', error);
+      return false;
+    } else {
+      console.log('[Supabase] Connection test successful');
+      return true;
+    }
+  } catch (err) {
+    console.error('[Supabase] Connection test exception:', err);
+    return false;
+  }
+}
+
 // Database types
 // TODO get claude to explain why we need this
 export interface Database {
