@@ -45,6 +45,12 @@ public = false
 file_size_limit = "50MiB"
 objects_path = "./gpx_files"
 
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "next_auth", "graphql_public"]
+extra_search_path = ["public", "next_auth"]
+
 [analytics]
 enabled = true
 port = 54327
