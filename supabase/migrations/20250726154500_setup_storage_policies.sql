@@ -24,7 +24,6 @@ WITH CHECK (
   AND (storage.foldername(name))[1] = auth.uid()::text
 );
 
--- TODO why do we need RLS? am i not controlling the insertion from the backend? i'm not letting browsers upload gpx files themselves
 -- Create policy to allow authenticated users to update their own GPX files
 CREATE POLICY "Users can update own GPX files" ON storage.objects
 FOR UPDATE 

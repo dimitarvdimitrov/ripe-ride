@@ -1,5 +1,23 @@
 -- Create NextAuth schema
 CREATE SCHEMA IF NOT EXISTS next_auth;
+-- Grant usage on next_auth schema to authenticated and service_role
+GRANT USAGE ON SCHEMA next_auth TO authenticated;
+GRANT USAGE ON SCHEMA next_auth TO service_role;
+GRANT USAGE ON SCHEMA next_auth TO anon;
+
+-- Grant all privileges on next_auth tables to service_role (for NextAuth adapter)
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA next_auth TO service_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA next_auth TO service_role;
+
+-- Grant select, insert, update, delete on next_auth tables to authenticated users
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA next_auth TO authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA next_auth TO authenticated;
+
+-- Grant privileges.
+ALTER DEFAULT PRIVILEGES IN SCHEMA next_auth GRANT ALL PRIVILEGES ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA next_auth GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA next_auth GRANT USAGE, SELECT ON SEQUENCES TO authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA next_auth GRANT ALL PRIVILEGES ON SEQUENCES TO service_role;
 
 -- Create NextAuth users table
 CREATE TABLE IF NOT EXISTS next_auth.users (
