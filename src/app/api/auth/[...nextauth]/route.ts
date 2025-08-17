@@ -1,12 +1,12 @@
 import NextAuth from 'next-auth'
 
 import {authOptions} from '@/lib/authOptions'
-import {testSupabaseConnection} from '@/lib/supabase'
+import {enableHttpDebugging} from '@/lib/httpDebugger'
 
-// Test connection on startup
-testSupabaseConnection().catch(err => {
-  console.error('[NextAuth] Failed to test Supabase connection on startup:', err);
-});
+// Enable comprehensive HTTP debugging for all requests
+enableHttpDebugging();
+
+console.log('[NextAuth] Route handler initialized with debugging enabled');
 
 const handler = NextAuth(authOptions)
 
