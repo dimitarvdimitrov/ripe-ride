@@ -6,7 +6,6 @@ let debuggingEnabled = false;
 export function enableHttpDebugging() {
   if (debuggingEnabled) return;
   
-  console.log('[HTTP Debugger] Enabling HTTP request interception for debugging');
   debuggingEnabled = true;
 
   // Intercept all fetch requests
