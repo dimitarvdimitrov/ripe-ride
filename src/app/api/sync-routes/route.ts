@@ -3,6 +3,7 @@ import {StravaAPIClient, decodePolyline} from '@/lib/strava';
 import {getCurrentUser} from '@/lib/auth';
 import {supabaseAdmin} from '@/lib/supabase';
 import {uploadGpxFile} from '@/lib/storage';
+import {JSDOM} from 'jsdom';
 
 export async function POST() {
     try {
@@ -55,7 +56,6 @@ export async function POST() {
                         await supabaseAdmin
                             .from('activities')
                             .upsert({
-                                id: `activity-${activity.id}`,
                                 strava_activity_id: activity.id.toString(),
                                 user_id: user.id,
                                 name: activity.name,
@@ -63,7 +63,8 @@ export async function POST() {
                                 elevation_meters: activity.total_elevation_gain || null,
                                 activity_date: activity.start_date_local,
                                 gpx_file_url: uploadResult.publicUrl
-                            });
+                            })
+                            .throwOnError();
 
                         console.log(`✅ Synced activity: ${activity.name}`);
                         syncedCount++;
@@ -102,13 +103,15 @@ export async function POST() {
                         await supabaseAdmin
                             .from('routes')
                             .upsert({
-                                id: `route-${route.id}`,
                                 user_id: user.id,
                                 name: route.name,
                                 distance_meters: distance,
                                 elevation_meters: null, // Routes don't have elevation data from Strava API
+                                platform: 'strava',
+                                platform_id: route.id.toString(),
                                 gpx_file_url: uploadResult.publicUrl
-                            });
+                            }, {onConflict: 'platform, platform_id'})
+                            .throwOnError()
 
                         console.log(`✅ Synced route: ${route.name}`);
                         syncedCount++;
@@ -146,6 +149,12 @@ function convertToGPX(
     points: Array<{ lat: number; lon: number }>,
     timestamp: string
 ): string {
+    // Use DOM to properly escape XML special characters
+    const dom = new JSDOM();
+    const div = dom.window.document.createElement('div');
+    div.textContent = name;
+    const escapedName = div.innerHTML;
+
     const trackPoints = points
         .map(
             (point) =>
@@ -156,11 +165,11 @@ function convertToGPX(
     return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="RipeRide - Strava Sync" xmlns="http://www.topografix.com/GPX/1/1">
   <metadata>
-    <name>${name}</name>
+    <name>${escapedName}</name>
     <time>${timestamp}</time>
   </metadata>
   <trk>
-    <name>${name}</name>
+    <name>${escapedName}</name>
     <trkseg>
 ${trackPoints}
     </trkseg>

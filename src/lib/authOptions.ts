@@ -1,4 +1,4 @@
-import {Awaitable, NextAuthOptions} from "next-auth";
+import {NextAuthOptions} from "next-auth";
 import StravaProvider from "next-auth/providers/strava";
 import {SupabaseAdapter} from "@auth/supabase-adapter";
 import {Adapter, AdapterAccount} from "@auth/core/adapters"
@@ -51,53 +51,12 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        async jwt({token, user, account}) {
-            console.log('[NextAuth] JWT Token user ID:', token.sub);
-
-            // On initial sign in (when account is present), store our custom data
-            if (account?.provider === 'strava' && account.access_token && user) {
-                console.log('[NextAuth] First time sign in - storing custom Strava data');
-                console.log('[NextAuth] User ID from JWT:', user.id);
-
-                try {
-                    // Store Strava tokens in our custom table
-                    const {error: tokensError} = await supabaseAdmin
-                        .from('strava_tokens')
-                        .upsert({
-                            user_id: user.id,
-                            access_token: account.access_token,
-                            refresh_token: account.refresh_token || '',
-                            expires_at: new Date(account.expires_at! * 1000).toISOString(),
-                            scope: account.scope || 'read,activity:read_all,profile:read_all'
-                        });
-
-                    if (tokensError) {
-                        console.error('[NextAuth] Error storing Strava tokens:', tokensError);
-                    } else {
-                        console.log('[NextAuth] Successfully stored Strava tokens');
-                    }
-
-                    // Also store/update user in our custom users table with Strava ID
-                    const {error: userError} = await supabaseAdmin
-                        .from('users')
-                        .upsert({
-                            id: user.id,
-                            strava_id: account.providerAccountId
-                        });
-
-                    if (userError) {
-                        console.error('[NextAuth] Error storing custom user data:', userError);
-                    } else {
-                        console.log('[NextAuth] Successfully stored custom user data with Strava ID');
-                    }
-                } catch (error) {
-                    console.error('[NextAuth] Exception in JWT callback:', error);
-                }
+        async session({session, user}) {
+            // Ensure user ID is properly set in session
+            if (user?.id) {
+                session.user.id = user.id
             }
 
-            return token;
-        },
-        async session({session, user}) {
             // Get the latest Strava tokens from database
             try {
                 const {data: tokens, error: tokensError} = await supabaseAdmin
@@ -166,6 +125,8 @@ async function refreshAccessToken({userId, refreshToken}: { userId: string, refr
         // Update tokens in database
         const expiresAt = new Date(Date.now() + refreshedTokens.expires_in * 1000).toISOString();
 
+
+        console.log('[NextAuth] Successfully refreshed Strava tokens:', {userId, expiresAt})
         await supabaseAdmin
             .from('strava_tokens')
             .update({
@@ -189,9 +150,7 @@ async function refreshAccessToken({userId, refreshToken}: { userId: string, refr
 function AuthAdapter(parent: Adapter): Adapter {
     return {
         ...parent,
-        linkAccount(account: AdapterAccount): Promise<void> | Awaitable<AdapterAccount | null | undefined> {
-            console.log('[AuthAdapter] linkAccount called with account:', account);
-            
+        async linkAccount(account: AdapterAccount): Promise<AdapterAccount | null | undefined> {
             // Filter account object to only include fields that exist in the database table
             const filteredAccount: AdapterAccount = {
                 userId: account.userId,
@@ -208,11 +167,27 @@ function AuthAdapter(parent: Adapter): Adapter {
                 oauth_token_secret: account.oauth_token_secret,
                 oauth_token: account.oauth_token,
             };
-            
-            console.log('[AuthAdapter] Filtered account:', filteredAccount);
-            
-            // Call the original method with filtered account
-            return parent.linkAccount?.(filteredAccount) ?? Promise.resolve(null);
+
+            await supabaseAdmin
+                .from('users')
+                .upsert({
+                    id: filteredAccount.userId,
+                    strava_id: filteredAccount.providerAccountId
+                })
+                .throwOnError();
+
+            await supabaseAdmin
+                .from('strava_tokens')
+                .upsert({
+                    user_id: filteredAccount.userId,
+                    access_token: filteredAccount.access_token,
+                    refresh_token: filteredAccount.refresh_token || '',
+                    expires_at: filteredAccount.expires_at ? new Date(filteredAccount.expires_at * 1000).toISOString() : null,
+                })
+                .throwOnError();
+
+            await parent.linkAccount!(filteredAccount);
+            return filteredAccount;
         }
     }
 }
