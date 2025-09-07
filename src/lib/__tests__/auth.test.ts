@@ -1,11 +1,13 @@
 import { getCurrentUser, getUserById } from '../auth'
 import { supabaseAdmin } from '../supabase'
+import { getServerSession } from 'next-auth/next'
 
 // Mock NextAuth
-const mockGetServerSession = jest.fn()
 jest.mock('next-auth/next', () => ({
-  getServerSession: mockGetServerSession
+  getServerSession: jest.fn()
 }))
+
+const mockGetServerSession = getServerSession as jest.MockedFunction<typeof getServerSession>
 
 // Mock authOptions
 jest.mock('../authOptions', () => ({
