@@ -30,100 +30,10 @@ export async function POST() {
         let syncedCount = 0;
         const errors: string[] = [];
 
-        // TODO dimitarvdimitrov process the activites and routes in two functions
-        // Process activities (save to database and storage)
-        for (const activity of activities.filter((activity) => activity?.map?.summary_polyline)) {
-            try {
-                const points = decodePolyline(activity.map.summary_polyline);
-
-                if (points.length > 0) {
-                    const gpxContent = convertToGPX(
-                        activity.name,
-                        points,
-                        activity.start_date_local
-                    );
-
-                    const filename = `strava-activity-${activity.id}.gpx`;
-
-                    // Upload GPX to Supabase Storage
-                    const uploadResult = await uploadGpxFile(user.id, 'activities', filename, gpxContent);
-
-                    if (uploadResult) {
-                        // Calculate distance (simple estimation)
-                        const distance = estimateDistance(points);
-
-                        // Store activity metadata in database
-                        await supabaseAdmin
-                            .from('activities')
-                            .upsert({
-                                strava_activity_id: activity.id.toString(),
-                                user_id: user.id,
-                                name: activity.name,
-                                distance_meters: distance,
-                                elevation_meters: activity.total_elevation_gain || null,
-                                activity_date: activity.start_date_local,
-                                gpx_file_url: uploadResult.publicUrl
-                            })
-                            .throwOnError();
-
-                        console.log(`✅ Synced activity: ${activity.name}`);
-                        syncedCount++;
-                    } else {
-                        errors.push(`Failed to upload GPX for activity ${activity.id}`);
-                    }
-                }
-            } catch (error) {
-                console.error(`Error processing activity ${activity.id}:`, error);
-                errors.push(`Error processing activity ${activity.id}: ${error}`);
-            }
-        }
-
-        // Process routes (save to database and storage)
-        for (const route of routes.filter((route) => route?.map?.summary_polyline)) {
-            try {
-                const points = decodePolyline(route.map.summary_polyline);
-
-                if (points.length > 0) {
-                    const gpxContent = convertToGPX(
-                        route.name,
-                        points,
-                        route.created_at
-                    );
-
-                    const filename = `strava-route-${route.id}.gpx`;
-
-                    // Upload GPX to Supabase Storage
-                    const uploadResult = await uploadGpxFile(user.id, 'routes', filename, gpxContent);
-
-                    if (uploadResult) {
-                        // Calculate distance (simple estimation)
-                        const distance = estimateDistance(points);
-
-                        // Store route metadata in database
-                        await supabaseAdmin
-                            .from('routes')
-                            .upsert({
-                                user_id: user.id,
-                                name: route.name,
-                                distance_meters: distance,
-                                elevation_meters: null, // Routes don't have elevation data from Strava API
-                                platform: 'strava',
-                                platform_id: route.id.toString(),
-                                gpx_file_url: uploadResult.publicUrl
-                            }, {onConflict: 'platform, platform_id'})
-                            .throwOnError()
-
-                        console.log(`✅ Synced route: ${route.name}`);
-                        syncedCount++;
-                    } else {
-                        errors.push(`Failed to upload GPX for route ${route.id}`);
-                    }
-                }
-            } catch (error) {
-                console.error(`Error processing route ${route.id}:`, error);
-                errors.push(`Error processing route ${route.id}: ${error}`);
-            }
-        }
+        const activityResults = await processActivities(activities, user.id, errors);
+        const routeResults = await processRoutes(routes, user.id, errors);
+        
+        syncedCount = activityResults.syncedCount + routeResults.syncedCount;
 
         console.log(`✅ Synced ${syncedCount} routes successfully`);
 
@@ -142,6 +52,123 @@ export async function POST() {
             {status: 500}
         );
     }
+}
+
+async function processActivities(
+    activities: Array<{
+        id: number;
+        name: string;
+        map?: { summary_polyline?: string };
+        start_date_local: string;
+        total_elevation_gain?: number;
+    }>,
+    userId: string,
+    errors: string[]
+): Promise<{ syncedCount: number }> {
+    let syncedCount = 0;
+    
+    for (const activity of activities.filter((activity) => activity?.map?.summary_polyline)) {
+        try {
+            const points = decodePolyline(activity.map!.summary_polyline!);
+
+            if (points.length > 0) {
+                const gpxContent = convertToGPX(
+                    activity.name,
+                    points,
+                    activity.start_date_local
+                );
+
+                const filename = `strava-activity-${activity.id}.gpx`;
+
+                const uploadResult = await uploadGpxFile(userId, 'activities', filename, gpxContent);
+
+                if (uploadResult) {
+                    const distance = estimateDistance(points);
+
+                    await supabaseAdmin
+                        .from('activities')
+                        .upsert({
+                            strava_activity_id: activity.id.toString(),
+                            user_id: userId,
+                            name: activity.name,
+                            distance_meters: distance,
+                            elevation_meters: activity.total_elevation_gain || null,
+                            activity_date: activity.start_date_local,
+                            gpx_file_url: uploadResult.publicUrl
+                        })
+                        .throwOnError();
+
+                    console.log(`✅ Synced activity: ${activity.name}`);
+                    syncedCount++;
+                } else {
+                    errors.push(`Failed to upload GPX for activity ${activity.id}`);
+                }
+            }
+        } catch (error) {
+            console.error(`Error processing activity ${activity.id}:`, error);
+            errors.push(`Error processing activity ${activity.id}: ${error}`);
+        }
+    }
+    
+    return { syncedCount };
+}
+
+async function processRoutes(
+    routes: Array<{
+        id: number;
+        name: string;
+        map?: { summary_polyline?: string };
+        created_at: string;
+    }>,
+    userId: string,
+    errors: string[]
+): Promise<{ syncedCount: number }> {
+    let syncedCount = 0;
+    
+    for (const route of routes.filter((route) => route?.map?.summary_polyline)) {
+        try {
+            const points = decodePolyline(route.map!.summary_polyline!);
+
+            if (points.length > 0) {
+                const gpxContent = convertToGPX(
+                    route.name,
+                    points,
+                    route.created_at
+                );
+
+                const filename = `strava-route-${route.id}.gpx`;
+
+                const uploadResult = await uploadGpxFile(userId, 'routes', filename, gpxContent);
+
+                if (uploadResult) {
+                    const distance = estimateDistance(points);
+
+                    await supabaseAdmin
+                        .from('routes')
+                        .upsert({
+                            user_id: userId,
+                            name: route.name,
+                            distance_meters: distance,
+                            elevation_meters: null,
+                            platform: 'strava',
+                            platform_id: route.id.toString(),
+                            gpx_file_url: uploadResult.publicUrl
+                        }, {onConflict: 'platform, platform_id'})
+                        .throwOnError();
+
+                    console.log(`✅ Synced route: ${route.name}`);
+                    syncedCount++;
+                } else {
+                    errors.push(`Failed to upload GPX for route ${route.id}`);
+                }
+            }
+        } catch (error) {
+            console.error(`Error processing route ${route.id}:`, error);
+            errors.push(`Error processing route ${route.id}: ${error}`);
+        }
+    }
+    
+    return { syncedCount };
 }
 
 function convertToGPX(
